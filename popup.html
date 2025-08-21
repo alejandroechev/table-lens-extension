@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Table Chart Renderer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 Table Chart Renderer</h1>
+      <p>Convert tables into interactive charts</p>
+    </header>
+    
+    <main>
+      <div class="section">
+        <h3>📋 Detected Tables</h3>
+        <div id="tableList" class="table-list">
+          <div class="no-tables">
+            <p>No tables detected on this page</p>
+            <button id="scanTables" class="btn btn-primary">Scan for Tables</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section" id="chartOptions" style="display: none;">
+        <h3>🎨 Chart Options</h3>
+        <div class="form-group">
+          <label for="chartType">Chart Type:</label>
+          <select id="chartType" class="form-control">
+            <option value="line">📈 Line Chart</option>
+            <option value="bar">📊 Bar Chart</option>
+            <option value="pie">🥧 Pie Chart</option>
+            <option value="doughnut">🍩 Doughnut Chart</option>
+            <option value="horizontalBar">📊 Horizontal Bar</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="xColumn">X-Axis Column:</label>
+          <select id="xColumn" class="form-control">
+            <option value="">Select column...</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="yColumns">Y-Axis Columns:</label>
+          <div id="yColumns" class="checkbox-group"></div>
+        </div>
+        
+        <div class="button-group">
+          <button id="generateChart" class="btn btn-primary">Generate Chart</button>
+          <button id="exportPNG" class="btn btn-secondary" disabled>Export PNG</button>
+          <button id="exportSVG" class="btn btn-secondary" disabled>Export SVG</button>
+        </div>
+      </div>
+      
+      <div class="section" id="status" style="display: none;">
+        <div class="status-message"></div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

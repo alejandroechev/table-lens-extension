@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Chart Renderer - Test Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+        }
+        .section {
+            margin: 40px 0;
+        }
+        h2 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        tr:hover {
+            background-color: #e8f0ff;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+            margin: 20px 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Table Chart Renderer - Test Page</h1>
+        <p class="subtitle">Test your extension with these sample tables</p>
+        
+        <div class="instructions">
+            <h3>🚀 How to Test:</h3>
+            <ol>
+                <li>Install the Table Chart Renderer extension</li>
+                <li>Click the extension icon in your browser toolbar</li>
+                <li>Click "Scan for Tables" to detect tables on this page</li>
+                <li>Select a table from the list</li>
+                <li>Choose chart type and configure axes</li>
+                <li>Generate your chart and export if needed!</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>🏷️ HTML Table - Sales Data</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Q1 Sales</th>
+                        <th>Q2 Sales</th>
+                        <th>Q3 Sales</th>
+                        <th>Q4 Sales</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Smartphones</td>
+                        <td>150000</td>
+                        <td>180000</td>
+                        <td>220000</td>
+                        <td>250000</td>
+                        <td>800000</td>
+                    </tr>
+                    <tr>
+                        <td>Laptops</td>
+                        <td>120000</td>
+                        <td>135000</td>
+                        <td>165000</td>
+                        <td>180000</td>
+                        <td>600000</td>
+                    </tr>
+                    <tr>
+                        <td>Tablets</td>
+                        <td>80000</td>
+                        <td>95000</td>
+                        <td>110000</td>
+                        <td>125000</td>
+                        <td>410000</td>
+                    </tr>
+                    <tr>
+                        <td>Headphones</td>
+                        <td>45000</td>
+                        <td>55000</td>
+                        <td>70000</td>
+                        <td>85000</td>
+                        <td>255000</td>
+                    </tr>
+                    <tr>
+                        <td>Smart Watches</td>
+                        <td>30000</td>
+                        <td>42000</td>
+                        <td>58000</td>
+                        <td>75000</td>
+                        <td>205000</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📊 CSV Data - Website Analytics</h2>
+            <div class="highlight">
+                <strong>💡 Tip:</strong> This CSV data in the code block below should be detected by the extension.
+            </div>
+            <pre><code>Month,Visitors,Page Views,Bounce Rate,Conversion Rate
+January,25000,75000,45.2,2.8
+February,28000,85000,42.1,3.1
+March,32000,98000,40.5,3.4
+April,29000,88000,43.8,2.9
+May,35000,110000,38.2,3.8
+June,38000,125000,36.9,4.1
+July,42000,140000,35.1,4.5
+August,39000,128000,37.3,4.2
+September,36000,115000,39.1,3.9
+October,33000,102000,41.2,3.5
+November,31000,95000,42.8,3.2
+December,34000,108000,40.7,3.6</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>🏷️ HTML Table - Company Performance</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th>Budget (K)</th>
+                        <th>Spent (K)</th>
+                        <th>Remaining (K)</th>
+                        <th>Utilization %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Marketing</td>
+                        <td>500</td>
+                        <td>420</td>
+                        <td>80</td>
+                        <td>84</td>
+                    </tr>
+                    <tr>
+                        <td>Engineering</td>
+                        <td>800</td>
+                        <td>725</td>
+                        <td>75</td>
+                        <td>91</td>
+                    </tr>
+                    <tr>
+                        <td>Sales</td>
+                        <td>300</td>
+                        <td>285</td>
+                        <td>15</td>
+                        <td>95</td>
+                    </tr>
+                    <tr>
+                        <td>HR</td>
+                        <td>200</td>
+                        <td>165</td>
+                        <td>35</td>
+                        <td>83</td>
+                    </tr>
+                    <tr>
+                        <td>Operations</td>
+                        <td>400</td>
+                        <td>380</td>
+                        <td>20</td>
+                        <td>95</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📝 Markdown Table - Survey Results</h2>
+            <div class="highlight">
+                <strong>💡 Tip:</strong> The markdown table below should also be detected by the extension.
+            </div>
+            <pre><code>| Age Group | Very Satisfied | Satisfied | Neutral | Dissatisfied | Very Dissatisfied |
+|-----------|----------------|-----------|---------|--------------|-------------------|
+| 18-25     | 45             | 32        | 12      | 8            | 3                 |
+| 26-35     | 52             | 28        | 11      | 6            | 3                 |
+| 36-45     | 38             | 35        | 15      | 9            | 3                 |
+| 46-55     | 41             | 31        | 16      | 8            | 4                 |
+| 56-65     | 35             | 29        | 18      | 12           | 6                 |
+| 65+       | 28             | 25        | 22      | 15           | 10                |</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Chart Type Recommendations</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Recommended Chart</th>
+                        <th>X-Axis</th>
+                        <th>Y-Axis</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Sales Data</td>
+                        <td>Line Chart</td>
+                        <td>Product</td>
+                        <td>Q1-Q4 Sales</td>
+                        <td>Showing trends over quarters</td>
+                    </tr>
+                    <tr>
+                        <td>Website Analytics</td>
+                        <td>Bar Chart</td>
+                        <td>Month</td>
+                        <td>Visitors, Page Views</td>
+                        <td>Comparing monthly performance</td>
+                    </tr>
+                    <tr>
+                        <td>Department Budget</td>
+                        <td>Pie Chart</td>
+                        <td>Department</td>
+                        <td>Budget</td>
+                        <td>Showing budget distribution</td>
+                    </tr>
+                    <tr>
+                        <td>Survey Results</td>
+                        <td>Horizontal Bar</td>
+                        <td>Age Group</td>
+                        <td>Satisfaction Levels</td>
+                        <td>Comparing satisfaction across age groups</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="instructions">
+            <h3>🔧 Troubleshooting:</h3>
+            <ul>
+                <li><strong>Tables not detected:</strong> Try refreshing the page and clicking "Scan for Tables"</li>
+                <li><strong>Chart not generating:</strong> Make sure you've selected both X-axis and Y-axis columns</li>
+                <li><strong>Export not working:</strong> Ensure your browser allows downloads from extensions</li>
+                <li><strong>Performance issues:</strong> Large tables (>100 rows) may take longer to process</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
