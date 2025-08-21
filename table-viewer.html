@@ -113,14 +113,77 @@
     }
 
     /* Data Tab Styles */
+    .data-controls {
+      background: #f8f9fa;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+    }
+    
+    .data-controls .control-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .data-controls .control-group label {
+      font-weight: 500;
+      font-size: 13px;
+      color: #495057;
+      white-space: nowrap;
+    }
+    
+    .data-controls .form-control {
+      min-width: 120px;
+    }
+    
+    .export-buttons {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    
+    .data-stats {
+      background: #e7f3ff;
+      border: 1px solid #b8daff;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      color: #0c63e4;
+    }
+
+    .data-table-container {
+      position: relative;
+      max-height: calc(100vh - 300px);
+      overflow: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+    }
+
     .data-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
       background: white;
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .data-table th,
@@ -128,6 +191,12 @@
       padding: 12px;
       text-align: left;
       border-bottom: 1px solid #dee2e6;
+      border-right: 1px solid #dee2e6;
+    }
+    
+    .data-table th:last-child,
+    .data-table td:last-child {
+      border-right: none;
     }
 
     .data-table th {
@@ -137,6 +206,28 @@
       position: sticky;
       top: 0;
       z-index: 1;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .data-table th:hover {
+      background: #e9ecef;
+    }
+    
+    .data-table th.sortable::after {
+      content: ' ↕';
+      color: #6c757d;
+      font-size: 11px;
+    }
+    
+    .data-table th.sort-asc::after {
+      content: ' ↑';
+      color: #667eea;
+    }
+    
+    .data-table th.sort-desc::after {
+      content: ' ↓';
+      color: #667eea;
     }
 
     .data-table tr:hover {
@@ -149,6 +240,10 @@
 
     .data-table tr:nth-child(even):hover {
       background: #f0f0ff;
+    }
+    
+    .data-table .filtered-row {
+      display: none;
     }
 
     /* Chart Tab Styles */
@@ -255,6 +350,34 @@
       max-width: 100%;
       max-height: 100%;
     }
+    
+    .chart-export-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+      gap: 5px;
+    }
+    
+    .chart-container:hover .chart-export-buttons {
+      display: flex;
+    }
+    
+    .export-btn {
+      background: rgba(102, 126, 234, 0.9);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .export-btn:hover {
+      background: rgba(102, 126, 234, 1);
+      transform: translateY(-1px);
+    }
 
     .chart-placeholder {
       color: #6c757d;
@@ -308,6 +431,15 @@
       color: #0c5460;
       border: 1px solid #bee5eb;
     }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .btn:disabled:hover {
+      transform: none;
+    }
   </style>
 </head>
 <body>
@@ -325,6 +457,41 @@
     
     <div class="tab-content">
       <div class="tab-panel active" id="data-panel">
+        <div class="data-controls">
+          <div class="control-group">
+            <label for="filterColumn">Filter by:</label>
+            <select id="filterColumn" class="form-control">
+              <option value="">All columns</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="filterValue">Contains:</label>
+            <input type="text" id="filterValue" class="form-control" placeholder="Filter text...">
+          </div>
+          <div class="control-group">
+            <button id="clearFilter" class="btn btn-secondary">Clear</button>
+          </div>
+          <div class="export-buttons">
+            <button id="exportCSV" class="btn btn-primary">📄 Export CSV</button>
+            <button id="exportTSV" class="btn btn-secondary">📋 Export TSV</button>
+          </div>
+        </div>
+        
+        <div class="data-stats" id="dataStats">
+          <div class="stat-item">
+            <span>Total Rows:</span>
+            <span class="stat-value" id="totalRows">0</span>
+          </div>
+          <div class="stat-item">
+            <span>Visible Rows:</span>
+            <span class="stat-value" id="visibleRows">0</span>
+          </div>
+          <div class="stat-item">
+            <span>Selected Column:</span>
+            <span class="stat-value" id="selectedColumnStats">None</span>
+          </div>
+        </div>
+        
         <div class="data-table-container">
           <table class="data-table" id="dataTable">
             <thead id="dataTableHead"></thead>

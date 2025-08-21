@@ -2,6 +2,8 @@ class TableViewer {
   constructor() {
     this.tableData = null;
     this.tableInfo = null;
+    this.filteredData = null;
+    this.currentSort = { column: -1, direction: 'none' };
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
     
@@ -18,12 +20,29 @@ class TableViewer {
       dataTable: document.getElementById('dataTable'),
       dataTableHead: document.getElementById('dataTableHead'),
       dataTableBody: document.getElementById('dataTableBody'),
-      newChartBtn: document.getElementById('newChartBtn')
+      newChartBtn: document.getElementById('newChartBtn'),
+      // Data controls
+      filterColumn: document.getElementById('filterColumn'),
+      filterValue: document.getElementById('filterValue'),
+      clearFilter: document.getElementById('clearFilter'),
+      exportCSV: document.getElementById('exportCSV'),
+      exportTSV: document.getElementById('exportTSV'),
+      // Stats
+      totalRows: document.getElementById('totalRows'),
+      visibleRows: document.getElementById('visibleRows'),
+      selectedColumnStats: document.getElementById('selectedColumnStats')
     };
   }
   
   attachEventListeners() {
     this.elements.newChartBtn.addEventListener('click', () => this.createNewChart());
+    
+    // Data controls
+    this.elements.filterValue.addEventListener('input', () => this.applyFilter());
+    this.elements.filterColumn.addEventListener('change', () => this.applyFilter());
+    this.elements.clearFilter.addEventListener('click', () => this.clearFilter());
+    this.elements.exportCSV.addEventListener('click', () => this.exportData('csv'));
+    this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
     
     // Handle tab clicks with event delegation
     this.elements.tabBar.addEventListener('click', (e) => {
@@ -67,9 +86,12 @@ class TableViewer {
   handleTableData(data) {
     this.tableData = data.tableData;
     this.tableInfo = data.tableInfo;
+    this.filteredData = [...this.tableData];
     
     this.updateHeader();
     this.renderDataTable();
+    this.setupDataControls();
+    this.updateStats();
   }
   
   updateHeader() {
@@ -91,17 +113,32 @@ class TableViewer {
   }
   
   renderDataTable() {
-    if (!this.tableData || this.tableData.length === 0) return;
+    if (!this.filteredData || this.filteredData.length === 0) return;
     
-    const headers = this.tableData[0];
-    const rows = this.tableData.slice(1);
+    const headers = this.filteredData[0];
+    const rows = this.filteredData.slice(1);
     
-    // Create table headers
+    // Create table headers with sorting capability
     this.elements.dataTableHead.innerHTML = '';
     const headerRow = document.createElement('tr');
-    headers.forEach(header => {
+    headers.forEach((header, index) => {
       const th = document.createElement('th');
       th.textContent = header;
+      th.className = 'sortable';
+      th.setAttribute('data-column', index);
+      th.title = 'Click to sort, double-click for statistics';
+      
+      // Add current sort indicator
+      if (this.currentSort.column === index) {
+        th.classList.add(`sort-${this.currentSort.direction}`);
+      }
+      
+      // Add click listener for sorting
+      th.addEventListener('click', () => this.sortTable(index));
+      
+      // Add click listener for column selection (for stats)
+      th.addEventListener('dblclick', () => this.selectColumn(index));
+      
       headerRow.appendChild(th);
     });
     this.elements.dataTableHead.appendChild(headerRow);
@@ -117,6 +154,197 @@ class TableViewer {
       });
       this.elements.dataTableBody.appendChild(tr);
     });
+    
+    this.updateStats();
+  }
+  
+  setupDataControls() {
+    if (!this.tableData || this.tableData.length === 0) return;
+    
+    const headers = this.tableData[0];
+    
+    // Populate filter column dropdown
+    this.elements.filterColumn.innerHTML = '<option value="">All columns</option>';
+    headers.forEach((header, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = header;
+      this.elements.filterColumn.appendChild(option);
+    });
+  }
+  
+  applyFilter() {
+    if (!this.tableData) return;
+    
+    const filterColumn = this.elements.filterColumn.value;
+    const filterValue = this.elements.filterValue.value.toLowerCase().trim();
+    
+    if (!filterValue) {
+      this.filteredData = [...this.tableData];
+    } else {
+      const headers = this.tableData[0];
+      const rows = this.tableData.slice(1);
+      
+      const filteredRows = rows.filter(row => {
+        if (filterColumn === '') {
+          // Search all columns
+          return row.some(cell => 
+            cell && cell.toString().toLowerCase().includes(filterValue)
+          );
+        } else {
+          // Search specific column
+          const columnIndex = parseInt(filterColumn);
+          const cell = row[columnIndex];
+          return cell && cell.toString().toLowerCase().includes(filterValue);
+        }
+      });
+      
+      this.filteredData = [headers, ...filteredRows];
+    }
+    
+    // Reapply current sort if any
+    if (this.currentSort.column !== -1) {
+      this.sortTable(this.currentSort.column, this.currentSort.direction);
+    } else {
+      this.renderDataTable();
+    }
+  }
+  
+  clearFilter() {
+    this.elements.filterColumn.value = '';
+    this.elements.filterValue.value = '';
+    this.filteredData = [...this.tableData];
+    this.currentSort = { column: -1, direction: 'none' };
+    this.renderDataTable();
+  }
+  
+  sortTable(columnIndex, direction = null) {
+    if (!this.filteredData || this.filteredData.length < 2) return;
+    
+    const headers = this.filteredData[0];
+    const rows = this.filteredData.slice(1);
+    
+    // Determine sort direction
+    if (direction === null) {
+      if (this.currentSort.column === columnIndex) {
+        // Cycle through: none -> asc -> desc -> none
+        switch (this.currentSort.direction) {
+          case 'none': direction = 'asc'; break;
+          case 'asc': direction = 'desc'; break;
+          case 'desc': direction = 'none'; break;
+        }
+      } else {
+        direction = 'asc';
+      }
+    }
+    
+    this.currentSort = { column: columnIndex, direction };
+    
+    if (direction === 'none') {
+      // Reset to original order
+      this.applyFilter();
+      return;
+    }
+    
+    // Sort rows
+    const sortedRows = [...rows].sort((a, b) => {
+      const aVal = a[columnIndex] || '';
+      const bVal = b[columnIndex] || '';
+      
+      // Try to parse as numbers
+      const aNum = parseFloat(aVal);
+      const bNum = parseFloat(bVal);
+      
+      let comparison = 0;
+      
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        // Numeric comparison
+        comparison = aNum - bNum;
+      } else {
+        // String comparison
+        comparison = aVal.toString().localeCompare(bVal.toString());
+      }
+      
+      return direction === 'asc' ? comparison : -comparison;
+    });
+    
+    this.filteredData = [headers, ...sortedRows];
+    this.renderDataTable();
+  }
+  
+  selectColumn(columnIndex) {
+    if (!this.filteredData || columnIndex < 0) return;
+    
+    const headers = this.filteredData[0];
+    const rows = this.filteredData.slice(1);
+    const columnName = headers[columnIndex];
+    
+    // Calculate statistics for the column
+    const values = rows.map(row => row[columnIndex]).filter(val => val !== null && val !== undefined && val !== '');
+    const numericValues = values.map(v => parseFloat(v)).filter(v => !isNaN(v));
+    
+    let stats = `${columnName}: ${values.length} values`;
+    
+    if (numericValues.length > 0) {
+      const sum = numericValues.reduce((a, b) => a + b, 0);
+      const avg = sum / numericValues.length;
+      const min = Math.min(...numericValues);
+      const max = Math.max(...numericValues);
+      
+      stats += ` | Sum: ${sum.toLocaleString()} | Avg: ${avg.toFixed(2)} | Min: ${min} | Max: ${max}`;
+    }
+    
+    this.elements.selectedColumnStats.textContent = stats;
+  }
+  
+  updateStats() {
+    if (!this.tableData || !this.filteredData) return;
+    
+    const totalRows = this.tableData.length - 1; // Exclude header
+    const visibleRows = this.filteredData.length - 1; // Exclude header
+    
+    this.elements.totalRows.textContent = totalRows.toLocaleString();
+    this.elements.visibleRows.textContent = visibleRows.toLocaleString();
+    
+    if (!this.elements.selectedColumnStats.textContent || this.elements.selectedColumnStats.textContent === 'None') {
+      this.elements.selectedColumnStats.textContent = 'Double-click column header for stats';
+    }
+  }
+  
+  exportData(format) {
+    if (!this.filteredData || this.filteredData.length === 0) return;
+    
+    const separator = format === 'tsv' ? '\t' : ',';
+    const extension = format === 'tsv' ? 'tsv' : 'csv';
+    const mimeType = format === 'tsv' ? 'text/tab-separated-values' : 'text/csv';
+    
+    // Convert data to CSV/TSV format
+    const csvContent = this.filteredData.map(row => 
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if necessary
+        const cellStr = (cell || '').toString();
+        if (cellStr.includes(separator) || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(separator)
+    ).join('\n');
+    
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const fileName = `table-data-${new Date().toISOString().split('T')[0]}.${extension}`;
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    // Show success message
+    this.showGlobalStatus(`Data exported as ${extension.toUpperCase()} successfully!`, 'success');
   }
   
   createNewChart() {
@@ -196,6 +424,10 @@ class TableViewer {
       </div>
       
       <div class="chart-container" id="${chartId}-container">
+        <div class="chart-export-buttons">
+          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'png')">PNG</button>
+          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'svg')">SVG</button>
+        </div>
         <div class="chart-placeholder">
           Configure chart options above and click "Generate Chart" to create your visualization.
         </div>
@@ -296,7 +528,13 @@ class TableViewer {
       const chartData = this.processChartData(xColumn, yColumns, chartType);
       
       // Create canvas
-      elements.container.innerHTML = `<canvas id="${chartId}-canvas" width="800" height="400"></canvas>`;
+      elements.container.innerHTML = `
+        <div class="chart-export-buttons">
+          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'png')">PNG</button>
+          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'svg')">SVG</button>
+        </div>
+        <canvas id="${chartId}-canvas" width="800" height="400"></canvas>
+      `;
       const canvas = document.getElementById(`${chartId}-canvas`);
       const ctx = canvas.getContext('2d');
       
@@ -516,6 +754,89 @@ class TableViewer {
         statusElement.style.display = 'none';
       }, 3000);
     }
+  }
+  
+  showGlobalStatus(message, type) {
+    // Create or update global status message
+    let statusElement = document.getElementById('globalStatus');
+    if (!statusElement) {
+      statusElement = document.createElement('div');
+      statusElement.id = 'globalStatus';
+      statusElement.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        z-index: 9999;
+        max-width: 400px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(statusElement);
+    }
+    
+    statusElement.textContent = message;
+    statusElement.className = `status-message status-${type}`;
+    statusElement.style.display = 'block';
+    
+    if (type === 'success') {
+      setTimeout(() => {
+        statusElement.style.display = 'none';
+      }, 3000);
+    }
+  }
+  
+  exportChart(chartId, format) {
+    const chart = this.charts.get(chartId);
+    if (!chart) {
+      this.showGlobalStatus('Chart not found', 'error');
+      return;
+    }
+    
+    try {
+      let dataUrl;
+      let fileName;
+      
+      if (format === 'png') {
+        dataUrl = chart.toBase64Image('image/png', 1.0);
+        fileName = `chart-${chartId}-${new Date().toISOString().split('T')[0]}.png`;
+      } else if (format === 'svg') {
+        // For SVG export, we'll convert the canvas to SVG
+        const canvas = chart.canvas;
+        const ctx = canvas.getContext('2d');
+        const svgData = this.canvasToSVG(canvas);
+        dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
+        fileName = `chart-${chartId}-${new Date().toISOString().split('T')[0]}.svg`;
+      }
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      this.showGlobalStatus(`Chart exported as ${format.toUpperCase()} successfully!`, 'success');
+      
+    } catch (error) {
+      console.error('Export error:', error);
+      this.showGlobalStatus(`Error exporting chart: ${error.message}`, 'error');
+    }
+  }
+  
+  canvasToSVG(canvas) {
+    // Convert canvas to SVG (simplified approach)
+    const width = canvas.width;
+    const height = canvas.height;
+    const dataUrl = canvas.toDataURL('image/png');
+    
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+        <image href="${dataUrl}" width="${width}" height="${height}"/>
+      </svg>
+    `.trim();
   }
 }
 
