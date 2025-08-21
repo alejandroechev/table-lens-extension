@@ -293,6 +293,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'selectTable') {
     tableDetector.selectTable(request.index);
     sendResponse({ success: true });
+  } else if (request.action === 'getTableData') {
+    const tables = tableDetector.detectTables();
+    if (request.index >= 0 && request.index < tables.length) {
+      sendResponse({ 
+        success: true, 
+        data: tables[request.index].data 
+      });
+    } else {
+      sendResponse({ 
+        success: false, 
+        error: 'Invalid table index' 
+      });
+    }
   } else if (request.action === 'generateChart') {
     const selectedTable = tableDetector.getSelectedTable();
     if (selectedTable) {

@@ -37,7 +37,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["chart.html", "libs/*"],
+      "resources": ["chart.html", "table-viewer.html", "table-viewer.js", "libs/*"],
       "matches": ["<all_urls>"]
     }
   ]

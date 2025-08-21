@@ -89,7 +89,7 @@ class PopupController {
     this.elements.tableList.querySelectorAll('.table-item').forEach(item => {
       item.addEventListener('click', () => {
         const index = parseInt(item.dataset.index);
-        this.selectTable(index);
+        this.openTableViewer(index);
       });
     });
   }
@@ -104,6 +104,105 @@ class PopupController {
     };
     
     return typeMap[type] || '📋 Table';
+  }
+  
+  async openTableViewer(index) {
+    try {
+      // Show loading state
+      this.showStatus('Opening table viewer...', 'info');
+      
+      this.selectedTableIndex = index;
+      this.selectedTable = this.tables[index];
+      
+      // Visual feedback - highlight selected table
+      document.querySelectorAll('.table-item').forEach((item, i) => {
+        item.classList.toggle('selected', i === index);
+      });
+      
+      // Get full table data from content script
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'getTableData',
+        index: index
+      });
+      
+      if (!response.success) {
+        this.showStatus('Error loading table data', 'error');
+        return;
+      }
+      
+      // Open table viewer window
+      const viewerUrl = chrome.runtime.getURL('table-viewer.html');
+      const viewerWindow = window.open(
+        viewerUrl,
+        `tableViewer-${index}`,
+        'width=1200,height=800,resizable=yes,scrollbars=yes,location=yes'
+      );
+      
+      if (!viewerWindow) {
+        this.showStatus('Please allow pop-ups for this extension', 'error');
+        return;
+      }
+      
+      // Send data when viewer is ready
+      const messageListener = (event) => {
+        if (event.data.type === 'REQUEST_TABLE_DATA') {
+          console.log('Table viewer requesting data, sending...');
+          viewerWindow.postMessage({
+            type: 'TABLE_DATA',
+            tableData: response.data,
+            tableInfo: this.selectedTable
+          }, '*');
+          window.removeEventListener('message', messageListener);
+        }
+      };
+      
+      window.addEventListener('message', messageListener);
+      
+      // Fallback: send data after timeout
+      viewerWindow.addEventListener('load', () => {
+        setTimeout(() => {
+          viewerWindow.postMessage({
+            type: 'TABLE_DATA',
+            tableData: response.data,
+            tableInfo: this.selectedTable
+          }, '*');
+          window.removeEventListener('message', messageListener);
+        }, 500);
+      });
+      
+      // Close popup after opening viewer
+      setTimeout(() => window.close(), 1000);
+      
+    } catch (error) {
+      console.error('Error opening table viewer:', error);
+      this.showStatus('Error opening table viewer', 'error');
+    }
+  }
+  
+  async selectTable(index) {
+    // Update visual selection
+    this.elements.tableList.querySelectorAll('.table-item').forEach((item, i) => {
+      item.classList.toggle('selected', i === index);
+    });
+    
+    this.selectedTableIndex = index;
+    this.selectedTable = this.tables[index];
+    
+    // Highlight table on page
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'selectTable',
+        index: index
+      });
+    } catch (error) {
+      console.error('Error selecting table:', error);
+    }
+    
+    // Show chart options
+    this.setupChartOptions();
+    this.elements.chartOptions.style.display = 'block';
   }
   
   async selectTable(index) {
