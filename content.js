@@ -280,6 +280,9 @@ class TableDetector {
 // Global instance
 const tableDetector = new TableDetector();
 
+// Make it available globally for OCR integration
+window.tableDetector = tableDetector;
+
 // Message passing with popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'detectTables') {
@@ -318,6 +321,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: 'No table selected' });
+    }
+  } else if (request.action === 'startOCR') {
+    if (window.ocrCapture) {
+      window.ocrCapture.startCapture();
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: 'OCR functionality not available' });
     }
   }
   

@@ -17,6 +17,7 @@ class PopupController {
       xColumn: document.getElementById('xColumn'),
       yColumns: document.getElementById('yColumns'),
       scanTables: document.getElementById('scanTables'),
+      ocrCapture: document.getElementById('ocrCapture'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
       exportSVG: document.getElementById('exportSVG'),
@@ -26,6 +27,7 @@ class PopupController {
   
   attachEventListeners() {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
+    this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
     this.elements.generateChart.addEventListener('click', () => this.generateChart());
     this.elements.exportPNG.addEventListener('click', () => this.exportChart('png'));
     this.elements.exportSVG.addEventListener('click', () => this.exportChart('svg'));
@@ -59,16 +61,37 @@ class PopupController {
     }
   }
   
+  async startOCRCapture() {
+    try {
+      this.showStatus('Initializing OCR capture...', 'info');
+      
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'startOCR'
+      });
+      
+      if (response.success) {
+        this.showStatus('Select a table area on the page', 'info');
+        // Close popup to allow full screen interaction
+        setTimeout(() => window.close(), 1000);
+      } else {
+        this.showStatus('OCR not available: ' + response.error, 'error');
+      }
+    } catch (error) {
+      console.error('Error starting OCR:', error);
+      this.showStatus('Error starting OCR. Please try again.', 'error');
+    }
+  }
+  
   renderTableList() {
     if (this.tables.length === 0) {
       this.elements.tableList.innerHTML = `
         <div class="no-tables">
           <p>No tables detected on this page</p>
-          <button id="scanTables" class="btn btn-primary">Scan for Tables</button>
+          <p class="hint">Try scanning for HTML/CSV tables or use OCR to extract tables from images</p>
         </div>
       `;
       
-      document.getElementById('scanTables').addEventListener('click', () => this.scanForTables());
       this.elements.chartOptions.style.display = 'none';
       return;
     }
@@ -100,7 +123,8 @@ class PopupController {
       'csv': '📊 CSV Data',
       'csv-selection': '📊 CSV Selection',
       'markdown': '📝 Markdown Table',
-      'markdown-selection': '📝 Markdown Selection'
+      'markdown-selection': '📝 Markdown Selection',
+      'ocr': '📷 OCR Table'
     };
     
     return typeMap[type] || '📋 Table';
@@ -384,6 +408,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (popupController) {
       popupController.showStatus(`Chart exported as ${request.format.toUpperCase()}`, 'success');
       setTimeout(() => popupController.hideStatus(), 3000);
+    }
+  } else if (request.action === 'ocrTableDetected') {
+    // Handle OCR table detection
+    if (popupController) {
+      popupController.tables.push(request.table);
+      popupController.renderTableList();
+      popupController.showStatus('OCR table extracted successfully!', 'success');
     }
   }
 });

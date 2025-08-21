@@ -16,10 +16,14 @@
     <main>
       <div class="section">
         <h3>📋 Detected Tables</h3>
+        <div class="table-actions">
+          <button id="scanTables" class="btn btn-secondary">🔄 Scan for Tables</button>
+          <button id="ocrCapture" class="btn btn-primary">📷 OCR Table</button>
+        </div>
         <div id="tableList" class="table-list">
           <div class="no-tables">
             <p>No tables detected on this page</p>
-            <button id="scanTables" class="btn btn-primary">Scan for Tables</button>
+            <p class="hint">Try scanning for HTML/CSV tables or use OCR to extract tables from images</p>
           </div>
         </div>
       </div>
