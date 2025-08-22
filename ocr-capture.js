@@ -23,7 +23,7 @@ class OCRCapture {
     // Create instructions
     const instructions = document.createElement('div');
     instructions.className = 'ocr-instructions';
-    instructions.innerHTML = '📊 Drag to select a table area for OCR extraction';
+  instructions.innerHTML = '📊 Drag to select a table area to capture from the screen';
     
     // Create selection box
     this.selection = document.createElement('div');
@@ -35,7 +35,7 @@ class OCRCapture {
     controls.className = 'ocr-controls';
     controls.innerHTML = `
       <button id="ocrCapture" class="ocr-btn ocr-btn-primary" disabled>
-        📷 Capture Table
+  📸 Capture Table
       </button>
       <button id="ocrCancel" class="ocr-btn ocr-btn-secondary">
         ✕ Cancel
@@ -330,45 +330,12 @@ class OCRCapture {
       this.updateProgressBar(1.0);
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      if (selectedContent) {
-        return selectedContent;
-      } else {
-        return `NO_TABLE_DETECTED
-Message	Details
-Selection Area	${Math.round(bounds.width)} x ${Math.round(bounds.height)} pixels
-Status	No clear table structure detected
-Suggestion	Try selecting a clearer table area
-Note	This feature works best with HTML tables`;
+      // If we found table-like content, return it
+      if (selectedContent && selectedContent.type === 'table' && selectedContent.content) {
+        return selectedContent.content;
       }
-      
-    } catch (error) {
-      console.error('Canvas-based OCR error:', error);
-      return `ERROR_OCCURRED
-Issue	${error.message}
-Status	Analysis failed
-Action	Please try selecting a different area`;
-    }
-  }
-  
-  analyzeSelectedArea(bounds) {
-    try {
-      // Get all elements within the selection bounds
-      const elements = document.elementsFromPoint(
-        bounds.left + bounds.width / 2,
-        bounds.top + bounds.height / 2
-      );
-      
-      // Look for table elements first
-      for (const element of elements) {
-        if (element.tagName === 'TABLE') {
-          return this.extractTableContent(element);
-        }
-        
-        // Check if element contains table-like content
-        const tableContent = this.findTableInElement(element, bounds);
-        if (tableContent) {
-          return tableContent;
-        }
+      if (selectedContent && selectedContent.type === 'structuredText' && selectedContent.content) {
+        return selectedContent.content;
       }
       
       // If no table found, try to extract text from the selected area
@@ -405,22 +372,25 @@ Action	Please try selecting a different area`;
   
   findTableInElement(element, bounds) {
     try {
+      const fullBounds = {
+        ...bounds,
+        right: bounds.left + bounds.width,
+        bottom: bounds.top + bounds.height
+      };
       // Check if element contains nested tables
       const nestedTables = element.querySelectorAll('table');
       for (const table of nestedTables) {
         const rect = table.getBoundingClientRect();
-        // Check if table overlaps with selection
-        if (this.rectsOverlap(bounds, rect)) {
-          return this.extractTableContent(table);
+        if (this.rectsOverlap(fullBounds, rect)) {
+          const content = this.extractTableContent(table);
+          if (content) return content;
         }
       }
-      
       // Look for div-based tables or structured content
-      const structuredContent = this.extractStructuredContent(element, bounds);
+      const structuredContent = this.extractStructuredContent(element, fullBounds);
       if (structuredContent) {
         return structuredContent;
       }
-      
     } catch (error) {
       console.error('Error finding table in element:', error);
     }
@@ -433,11 +403,16 @@ Action	Please try selecting a different area`;
       const possibleRows = element.querySelectorAll('div, tr, li');
       const extractedRows = [];
       
+      const fullBounds = {
+        ...bounds,
+        right: bounds.left + bounds.width,
+        bottom: bounds.top + bounds.height
+      };
+      
       for (const row of possibleRows) {
         const rect = row.getBoundingClientRect();
-        if (this.rectsOverlap(bounds, rect)) {
+        if (this.rectsOverlap(fullBounds, rect)) {
           const text = row.textContent.trim();
-          
           // Check if this looks like tabular data
           if (this.looksLikeTableRow(text)) {
             extractedRows.push(text);
@@ -455,6 +430,42 @@ Action	Please try selecting a different area`;
     }
     return null;
   }
+
+  analyzeSelectedArea(bounds) {
+    try {
+      const fullBounds = {
+        ...bounds,
+        right: bounds.left + bounds.width,
+        bottom: bounds.top + bounds.height
+      };
+      // 1) Direct table elements within selection
+      const tables = document.querySelectorAll('table');
+      for (const table of tables) {
+        const rect = table.getBoundingClientRect();
+        if (this.rectsOverlap(fullBounds, rect)) {
+          const content = this.extractTableContent(table);
+          if (content) return { type: 'table', content };
+        }
+      }
+      // 2) Look for structured content inside elements that overlap selection
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      const elements = document.elementsFromPoint(centerX, centerY);
+      for (const el of elements) {
+        const rect = el.getBoundingClientRect();
+        if (this.rectsOverlap(fullBounds, rect)) {
+          const structured = this.extractStructuredContent(el, bounds);
+          if (structured) return { type: 'structuredText', content: structured };
+        }
+      }
+      // 3) Fallback: scan body subtree for overlapping potential rows
+      const bodyStructured = this.extractStructuredContent(document.body, bounds);
+      if (bodyStructured) return { type: 'structuredText', content: bodyStructured };
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
   
   extractTextFromArea(bounds) {
     try {
@@ -469,7 +480,12 @@ Action	Please try selecting a different area`;
         {
           acceptNode: (node) => {
             const rect = node.parentElement?.getBoundingClientRect();
-            if (rect && this.rectsOverlap(bounds, rect)) {
+            const fullBounds = {
+              ...bounds,
+              right: bounds.left + bounds.width,
+              bottom: bounds.top + bounds.height
+            };
+            if (rect && this.rectsOverlap(fullBounds, rect)) {
               return NodeFilter.FILTER_ACCEPT;
             }
             return NodeFilter.FILTER_SKIP;
@@ -504,10 +520,20 @@ Action	Please try selecting a different area`;
   }
   
   rectsOverlap(rect1, rect2) {
-    return !(rect1.right < rect2.left || 
-             rect2.right < rect1.left || 
-             rect1.bottom < rect2.top || 
-             rect2.bottom < rect1.top);
+    // Normalize to have right/bottom if missing
+    const a = {
+      left: rect1.left,
+      top: rect1.top,
+      right: rect1.right !== undefined ? rect1.right : rect1.left + rect1.width,
+      bottom: rect1.bottom !== undefined ? rect1.bottom : rect1.top + rect1.height
+    };
+    const b = {
+      left: rect2.left,
+      top: rect2.top,
+      right: rect2.right !== undefined ? rect2.right : rect2.left + rect2.width,
+      bottom: rect2.bottom !== undefined ? rect2.bottom : rect2.top + rect2.height
+    };
+    return !(a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top);
   }
   
   looksLikeTableRow(text) {
@@ -1071,7 +1097,7 @@ Note: This is demo data because OCR failed. Please check the console for details
     const dialog = document.createElement('div');
     dialog.className = 'ocr-result';
     dialog.innerHTML = `
-      <h3 class="ocr-error">❌ OCR Error</h3>
+  <h3 class="ocr-error">❌ Capture Error</h3>
       <p>${message}</p>
       <div class="ocr-result-actions">
         <button id="ocrRetry" class="ocr-btn ocr-btn-primary">
@@ -1146,37 +1172,65 @@ Note: This is demo data because OCR failed. Please check the console for details
         return;
       }
       
-      // Add the OCR table to the detected tables
+      // Build columns from header row
+      const columns = Array.isArray(processedData[0]) ? processedData[0] : [];
+      
+      // Add the OCR table to the detected tables and open the viewer directly
       if (window.tableDetector) {
         const ocrTable = {
           type: 'ocr',
           element: null,
           data: processedData,
+          columns,
           preview: this.generatePreview(processedData),
           id: `ocr-${Date.now()}`
         };
-        
+
+        // Push into detector list for consistency
         window.tableDetector.tables.push(ocrTable);
-        
-        // Notify popup to refresh
-        chrome.runtime.sendMessage({
-          action: 'ocrTableDetected',
-          table: ocrTable
-        });
-        
-        // Show success message briefly before closing
-        this.removeExistingDialogs();
-        const successDialog = document.createElement('div');
-        successDialog.className = 'ocr-processing';
-        successDialog.innerHTML = `
-          <h3>✅ Table Added Successfully</h3>
-          <p>OCR table has been added to the detected tables list</p>
-        `;
-        document.body.appendChild(successDialog);
-        
-        setTimeout(() => {
-          this.cancel();
-        }, 1500);
+
+        // Notify popup to refresh its list
+        chrome.runtime.sendMessage({ action: 'ocrTableDetected', table: ocrTable });
+
+        // Try to open the popup viewer window directly with this table
+        const viewerUrl = chrome.runtime.getURL('table-viewer.html');
+        const viewerWindow = window.open(
+          viewerUrl,
+          `tableViewer-${ocrTable.id}`,
+          'width=1200,height=800,resizable=yes,scrollbars=yes,location=yes'
+        );
+
+        if (viewerWindow) {
+          const payload = {
+            type: 'TABLE_DATA',
+            tableData: processedData,
+            tableInfo: {
+              type: 'ocr',
+              columns,
+              preview: this.generatePreview(processedData),
+              id: ocrTable.id
+            }
+          };
+
+          const readyListener = (event) => {
+            if (event.data && event.data.type === 'REQUEST_TABLE_DATA') {
+              viewerWindow.postMessage(payload, '*');
+              window.removeEventListener('message', readyListener);
+            }
+          };
+          window.addEventListener('message', readyListener);
+
+          // Fallback send after load
+          viewerWindow.addEventListener('load', () => {
+            setTimeout(() => {
+              viewerWindow.postMessage(payload, '*');
+              window.removeEventListener('message', readyListener);
+            }, 500);
+          });
+        }
+
+        // Close overlay immediately
+        this.cancel();
       } else {
         this.showError('Table detector not available. Please refresh the page and try again.');
       }

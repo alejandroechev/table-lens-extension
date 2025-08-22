@@ -27,7 +27,7 @@ class PopupController {
   
   attachEventListeners() {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
-    this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
+  this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
     this.elements.generateChart.addEventListener('click', () => this.generateChart());
     this.elements.exportPNG.addEventListener('click', () => this.exportChart('png'));
     this.elements.exportSVG.addEventListener('click', () => this.exportChart('svg'));
@@ -63,7 +63,7 @@ class PopupController {
   
   async startOCRCapture() {
     try {
-      this.showStatus('Initializing OCR capture...', 'info');
+  this.showStatus('Starting screen capture for table...', 'info');
       
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const response = await chrome.tabs.sendMessage(tab.id, {
@@ -71,15 +71,15 @@ class PopupController {
       });
       
       if (response.success) {
-        this.showStatus('Select a table area on the page', 'info');
+  this.showStatus('Select a table area on the page', 'info');
         // Close popup to allow full screen interaction
         setTimeout(() => window.close(), 1000);
       } else {
-        this.showStatus('OCR not available: ' + response.error, 'error');
+  this.showStatus('Screen capture not available: ' + response.error, 'error');
       }
     } catch (error) {
       console.error('Error starting OCR:', error);
-      this.showStatus('Error starting OCR. Please try again.', 'error');
+  this.showStatus('Error starting screen capture. Please try again.', 'error');
     }
   }
   
@@ -88,7 +88,7 @@ class PopupController {
       this.elements.tableList.innerHTML = `
         <div class="no-tables">
           <p>No tables detected on this page</p>
-          <p class="hint">Try scanning for HTML/CSV tables or use OCR to extract tables from images</p>
+          <p class="hint">Try scanning for HTML/CSV tables or use Screenshot Capture to extract tables from images</p>
         </div>
       `;
       
@@ -124,7 +124,7 @@ class PopupController {
       'csv-selection': '📊 CSV Selection',
       'markdown': '📝 Markdown Table',
       'markdown-selection': '📝 Markdown Selection',
-      'ocr': '📷 OCR Table'
+  'ocr': '� Captured from Screen'
     };
     
     return typeMap[type] || '📋 Table';
