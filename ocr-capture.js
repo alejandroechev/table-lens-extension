@@ -1064,7 +1064,7 @@ Note: This is demo data because OCR failed. Please check the console for details
       ${tableHTML}
       <div class="ocr-result-actions">
         <button id="ocrUseTable" class="ocr-btn ocr-btn-primary">
-          📊 Use This Table
+          📊 Open in TableLens
         </button>
         <button id="ocrRetry" class="ocr-btn ocr-btn-secondary">
           🔄 Try Again

@@ -1,5 +1,5 @@
 # Simple Setup Verification Script
-Write-Host "Checking Table Chart Renderer Extension Setup..." -ForegroundColor Green
+Write-Host "Checking TableLens Extension Setup..." -ForegroundColor Green
 
 # Check Chart.js
 if (Test-Path "libs/chart.min.js") {
