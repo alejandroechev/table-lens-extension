@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-World OCR Document Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f9f9f9;
+        }
+        
+        .document {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .document-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        /* Scanned Document Effects */
+        .scanned-doc {
+            background: #fefefe;
+            transform: rotate(-0.3deg);
+            filter: contrast(0.9) brightness(0.95);
+            position: relative;
+        }
+        
+        .scanned-doc::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 1px,
+                    rgba(0,0,0,0.01) 1px,
+                    rgba(0,0,0,0.01) 2px
+                ),
+                radial-gradient(ellipse 200px 100px at 10% 10%, rgba(0,0,0,0.02), transparent),
+                radial-gradient(ellipse 150px 80px at 90% 90%, rgba(0,0,0,0.015), transparent);
+            pointer-events: none;
+        }
+        
+        /* Poor Quality Scan */
+        .poor-scan {
+            background: #f8f8f6;
+            filter: contrast(0.7) brightness(1.1);
+            transform: rotate(0.8deg);
+            position: relative;
+        }
+        
+        .poor-scan::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 30% 20%, rgba(0,0,0,0.05) 2%, transparent 3%),
+                radial-gradient(circle at 70% 80%, rgba(0,0,0,0.03) 1%, transparent 2%),
+                radial-gradient(circle at 20% 70%, rgba(0,0,0,0.04) 1.5%, transparent 2.5%);
+            pointer-events: none;
+        }
+        
+        /* Fax Quality */
+        .fax-quality {
+            background: #fcfcfc;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.2;
+            filter: contrast(1.4) brightness(0.9);
+            position: relative;
+        }
+        
+        .fax-quality::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 0.8px,
+                rgba(0,0,0,0.05) 0.8px,
+                rgba(0,0,0,0.05) 1.6px
+            );
+            pointer-events: none;
+        }
+        
+        /* Old Typewriter */
+        .typewriter {
+            background: #f9f9f7;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #2a2a2a;
+            position: relative;
+        }
+        
+        .typewriter .uneven-char {
+            position: relative;
+            top: 1px;
+        }
+        
+        .typewriter .faded-char {
+            opacity: 0.7;
+        }
+        
+        /* Newspaper Quality */
+        .newspaper {
+            background: #f5f5f3;
+            font-family: 'Times New Roman', serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #333;
+            columns: 2;
+            column-gap: 20px;
+        }
+        
+        /* Receipt Print */
+        .receipt {
+            background: #fefefe;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.1;
+            color: #444;
+            width: 300px;
+            margin: 0 auto;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .receipt::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 8px,
+                rgba(0,0,0,0.02) 8px,
+                rgba(0,0,0,0.02) 9px
+            );
+            pointer-events: none;
+        }
+        
+        /* Handwritten Form */
+        .handwritten-form {
+            background: #fff;
+            position: relative;
+        }
+        
+        .form-field {
+            border-bottom: 1px solid #ccc;
+            padding: 5px 0;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .handwriting {
+            font-family: 'Comic Sans MS', cursive;
+            color: #0066cc;
+            font-size: 14px;
+            transform: rotate(-1deg);
+            position: relative;
+            top: 2px;
+        }
+        
+        /* Medical Report */
+        .medical-report {
+            background: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .medical-header {
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Financial Statement */
+        .financial-statement {
+            background: #fff;
+            font-family: 'Times New Roman', serif;
+            font-size: 11px;
+        }
+        
+        .financial-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: inherit;
+            font-family: inherit;
+        }
+        
+        .financial-table th,
+        .financial-table td {
+            border: 1px solid #666;
+            padding: 4px 8px;
+            text-align: left;
+        }
+        
+        .financial-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .financial-table .number {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Technical Specification */
+        .tech-spec {
+            background: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: inherit;
+        }
+        
+        .spec-table th,
+        .spec-table td {
+            border: 1px solid #999;
+            padding: 3px 5px;
+            font-size: 9px;
+        }
+        
+        .spec-table th {
+            background: #e8e8e8;
+            text-align: center;
+        }
+        
+        /* Invoice Format */
+        .invoice {
+            background: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        
+        .invoice-table th,
+        .invoice-table td {
+            border: 1px solid #aaa;
+            padding: 6px;
+        }
+        
+        .invoice-table th {
+            background: #f5f5f5;
+        }
+        
+        .invoice-total {
+            text-align: right;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-World Document OCR Tests</h1>
+    <p>This page simulates various real-world document types that OCR systems commonly encounter.</p>
+    
+    <div class="document scanned-doc">
+        <div class="document-title">Scanned Office Memo</div>
+        <p><strong>TO:</strong> All Department Heads<br>
+        <strong>FROM:</strong> IT Security Team<br>
+        <strong>DATE:</strong> March 15, 2024<br>
+        <strong>RE:</strong> System Maintenance Schedule</p>
+        
+        <table class="financial-table">
+            <tr>
+                <th>System</th>
+                <th>Maintenance Window</th>
+                <th>Duration</th>
+                <th>Impact</th>
+            </tr>
+            <tr>
+                <td>Email Server</td>
+                <td>March 20, 2024 2:00 AM</td>
+                <td>4 hours</td>
+                <td>Email unavailable</td>
+            </tr>
+            <tr>
+                <td>Database Cluster</td>
+                <td>March 22, 2024 1:00 AM</td>
+                <td>6 hours</td>
+                <td>All applications down</td>
+            </tr>
+            <tr>
+                <td>Network Infrastructure</td>
+                <td>March 25, 2024 12:00 AM</td>
+                <td>2 hours</td>
+                <td>Internet connectivity lost</td>
+            </tr>
+        </table>
+        
+        <p>Please ensure all critical operations are completed before these maintenance windows.</p>
+    </div>
+    
+    <div class="document poor-scan">
+        <div class="document-title">Poor Quality Scan - Budget Report</div>
+        <p>Q2 2024 Department Budget Analysis</p>
+        
+        <table class="financial-table">
+            <tr>
+                <th>Department</th>
+                <th>Allocated</th>
+                <th>Spent</th>
+                <th>Remaining</th>
+                <th>% Used</th>
+            </tr>
+            <tr>
+                <td>Human Resources</td>
+                <td class="number">$125,000</td>
+                <td class="number">$89,450</td>
+                <td class="number">$35,550</td>
+                <td class="number">71.6%</td>
+            </tr>
+            <tr>
+                <td>Marketing</td>
+                <td class="number">$200,000</td>
+                <td class="number">$156,789</td>
+                <td class="number">$43,211</td>
+                <td class="number">78.4%</td>
+            </tr>
+            <tr>
+                <td>Research & Development</td>
+                <td class="number">$350,000</td>
+                <td class="number">$298,567</td>
+                <td class="number">$51,433</td>
+                <td class="number">85.3%</td>
+            </tr>
+            <tr>
+                <td>Operations</td>
+                <td class="number">$180,000</td>
+                <td class="number">$134,222</td>
+                <td class="number">$45,778</td>
+                <td class="number">74.6%</td>
+            </tr>
+        </table>
+        
+        <p><strong>Notes:</strong> R&D department is approaching budget limit. Recommend budget review for Q3.</p>
+    </div>
+    
+    <div class="document fax-quality">
+        <div class="document-title">FAX TRANSMISSION - URGENT</div>
+        <p>EMERGENCY CONTACT LIST - KEEP UPDATED</p>
+        
+        <table style="width: 100%; border-collapse: collapse; font-family: inherit; font-size: inherit;">
+            <tr>
+                <th style="border: 1px solid #666; padding: 4px; background: #f0f0f0;">DEPT</th>
+                <th style="border: 1px solid #666; padding: 4px; background: #f0f0f0;">CONTACT</th>
+                <th style="border: 1px solid #666; padding: 4px; background: #f0f0f0;">PHONE</th>
+                <th style="border: 1px solid #666; padding: 4px; background: #f0f0f0;">ALT PHONE</th>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #666; padding: 4px;">SECURITY</td>
+                <td style="border: 1px solid #666; padding: 4px;">J. MARTINEZ</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 123-4567</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 987-6543</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #666; padding: 4px;">MAINTENANCE</td>
+                <td style="border: 1px solid #666; padding: 4px;">R. CHEN</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 234-5678</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 876-5432</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #666; padding: 4px;">IT SUPPORT</td>
+                <td style="border: 1px solid #666; padding: 4px;">A. JOHNSON</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 345-6789</td>
+                <td style="border: 1px solid #666; padding: 4px;">(555) 765-4321</td>
+            </tr>
+        </table>
+        
+        <p>*** CALL SECURITY FIRST IN ALL EMERGENCIES ***</p>
+    </div>
+    
+    <div class="document typewriter">
+        <div class="document-title">TYPEWRITTEN INVENTORY REPORT</div>
+        <p>QUARTERLY STOCK <span class="uneven-char">C</span>HECK - WAREHOUSE B</p>
+        <p>DATE: MARCH 15, 19<span class="faded-char">8</span>4</p>
+        
+        <table style="width: 100%; border-collapse: collapse; font-family: inherit; font-size: inherit;">
+            <tr>
+                <th style="border: 1px solid #333; padding: 4px;">ITEM CODE</th>
+                <th style="border: 1px solid #333; padding: 4px;">DESCRIPTION</th>
+                <th style="border: 1px solid #333; padding: 4px;">QTY ON HAND</th>
+                <th style="border: 1px solid #333; padding: 4px;">REORDER LEVEL</th>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #333; padding: 4px;">WB-001</td>
+                <td style="border: 1px solid #333; padding: 4px;"><span class="faded-char">S</span>TEEL BRACKETS</td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">1,247</td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">500</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #333; padding: 4px;">WB-002</td>
+                <td style="border: 1px solid #333; padding: 4px;">RUBBER GASKETS</td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">89<span class="uneven-char">3</span></td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">200</td>
+            </tr>
+            <tr>
+                <td style="border: 1px solid #333; padding: 4px;">WB-0<span class="faded-char">0</span>3</td>
+                <td style="border: 1px solid #333; padding: 4px;">COPPER FITTINGS</td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">156</td>
+                <td style="border: 1px solid #333; padding: 4px; text-align: right;">100</td>
+            </tr>
+        </table>
+        
+        <p>NOTE: Items below reorder level marked <span class="uneven-char">w</span>ith (*)</p>
+    </div>
+    
+    <div class="document receipt">
+        <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">TECH SUPPLIES STORE</div>
+        <div style="text-align: center; font-size: 10px; margin-bottom: 15px;">
+            123 MAIN ST, ANYTOWN ST 12345<br>
+            TEL: (555) 123-4567
+        </div>
+        
+        <div style="border-top: 1px dashed #666; border-bottom: 1px dashed #666; padding: 8px 0; margin: 10px 0;">
+            <table style="width: 100%; font-family: inherit; font-size: inherit;">
+                <tr>
+                    <td>ITEM</td>
+                    <td style="text-align: right;">QTY</td>
+                    <td style="text-align: right;">PRICE</td>
+                    <td style="text-align: right;">TOTAL</td>
+                </tr>
+                <tr><td colspan="4" style="border-top: 1px solid #666; padding-top: 5px;"></td></tr>
+                <tr>
+                    <td>USB CABLE 6FT</td>
+                    <td style="text-align: right;">2</td>
+                    <td style="text-align: right;">12.99</td>
+                    <td style="text-align: right;">25.98</td>
+                </tr>
+                <tr>
+                    <td>WIRELESS MOUSE</td>
+                    <td style="text-align: right;">1</td>
+                    <td style="text-align: right;">29.50</td>
+                    <td style="text-align: right;">29.50</td>
+                </tr>
+                <tr>
+                    <td>KEYBOARD WIRED</td>
+                    <td style="text-align: right;">1</td>
+                    <td style="text-align: right;">45.00</td>
+                    <td style="text-align: right;">45.00</td>
+                </tr>
+                <tr><td colspan="4" style="border-top: 1px solid #666; padding-top: 5px;"></td></tr>
+                <tr>
+                    <td colspan="3">SUBTOTAL:</td>
+                    <td style="text-align: right;">100.48</td>
+                </tr>
+                <tr>
+                    <td colspan="3">TAX (8.25%):</td>
+                    <td style="text-align: right;">8.29</td>
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td colspan="3">TOTAL:</td>
+                    <td style="text-align: right;">108.77</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div style="text-align: center; font-size: 9px; margin-top: 10px;">
+            THANK YOU FOR YOUR BUSINESS!<br>
+            RECEIPT #: 2024031501<br>
+            DATE: 03/15/2024 14:32
+        </div>
+    </div>
+    
+    <div class="document medical-report">
+        <div class="medical-header">
+            CENTRAL MEDICAL CENTER<br>
+            LABORATORY RESULTS
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <strong>Patient:</strong> DOE, JANE<br>
+            <strong>DOB:</strong> 01/15/1980<br>
+            <strong>MRN:</strong> 123456789<br>
+            <strong>Date Collected:</strong> March 15, 2024
+        </div>
+        
+        <table class="financial-table">
+            <tr>
+                <th>Test</th>
+                <th>Result</th>
+                <th>Reference Range</th>
+                <th>Units</th>
+                <th>Flag</th>
+            </tr>
+            <tr>
+                <td>Glucose, Fasting</td>
+                <td style="text-align: right;">95</td>
+                <td>70-100</td>
+                <td>mg/dL</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Cholesterol, Total</td>
+                <td style="text-align: right;">187</td>
+                <td>&lt;200</td>
+                <td>mg/dL</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>HDL Cholesterol</td>
+                <td style="text-align: right;">58</td>
+                <td>&gt;40</td>
+                <td>mg/dL</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>LDL Cholesterol</td>
+                <td style="text-align: right;">112</td>
+                <td>&lt;130</td>
+                <td>mg/dL</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Triglycerides</td>
+                <td style="text-align: right;">143</td>
+                <td>&lt;150</td>
+                <td>mg/dL</td>
+                <td></td>
+            </tr>
+        </table>
+        
+        <p><strong>Interpretation:</strong> All values within normal limits. Continue current lifestyle modifications.</p>
+    </div>
+    
+    <div class="document tech-spec">
+        <div class="document-title">TECHNICAL SPECIFICATIONS</div>
+        <p><strong>Product:</strong> Industrial Control Module ICM-2400X</p>
+        
+        <table class="spec-table">
+            <tr>
+                <th>Parameter</th>
+                <th>Min</th>
+                <th>Typical</th>
+                <th>Max</th>
+                <th>Units</th>
+                <th>Conditions</th>
+            </tr>
+            <tr>
+                <td>Supply Voltage</td>
+                <td>10.8</td>
+                <td>12.0</td>
+                <td>13.2</td>
+                <td>VDC</td>
+                <td>Continuous</td>
+            </tr>
+            <tr>
+                <td>Operating Current</td>
+                <td>-</td>
+                <td>125</td>
+                <td>150</td>
+                <td>mA</td>
+                <td>Typical Load</td>
+            </tr>
+            <tr>
+                <td>Input Impedance</td>
+                <td>10</td>
+                <td>-</td>
+                <td>-</td>
+                <td>kΩ</td>
+                <td>@ 1kHz</td>
+            </tr>
+            <tr>
+                <td>Operating Temperature</td>
+                <td>-40</td>
+                <td>25</td>
+                <td>+85</td>
+                <td>°C</td>
+                <td>Ambient</td>
+            </tr>
+            <tr>
+                <td>Response Time</td>
+                <td>-</td>
+                <td>50</td>
+                <td>100</td>
+                <td>ms</td>
+                <td>10-90%</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div style="margin-top: 50px; padding: 20px; background: #e8f5e8; border-left: 4px solid #4caf50;">
+        <h3>📄 Real-World Document Testing</h3>
+        <p>These document simulations represent common OCR challenges encountered in business environments:</p>
+        
+        <h4>Document Types Included:</h4>
+        <ul>
+            <li><strong>Scanned Memos:</strong> Standard office documents with rotation and scanning artifacts</li>
+            <li><strong>Poor Quality Scans:</strong> Documents with dust, smudges, and uneven lighting</li>
+            <li><strong>Fax Transmissions:</strong> Low resolution with transmission artifacts and scan lines</li>
+            <li><strong>Typewritten Reports:</strong> Vintage documents with uneven character alignment</li>
+            <li><strong>Thermal Receipts:</strong> Small fonts with thermal printing characteristics</li>
+            <li><strong>Medical Reports:</strong> Formal medical documentation with precise data tables</li>
+            <li><strong>Technical Specifications:</strong> Dense engineering data with small fonts and symbols</li>
+        </ul>
+        
+        <h4>Common Real-World Challenges:</h4>
+        <ul>
+            <li>Document rotation and skewing</li>
+            <li>Inconsistent lighting and shadows</li>
+            <li>Paper texture and aging effects</li>
+            <li>Mixed font sizes and families</li>
+            <li>Complex table structures</li>
+            <li>Faded or worn text</li>
+            <li>Scanning artifacts and compression</li>
+        </ul>
+        
+        <p><strong>Testing Tips:</strong> Try selecting different table areas from various document types to test how well your OCR handles different real-world scenarios.</p>
+    </div>
+</body>
+</html>

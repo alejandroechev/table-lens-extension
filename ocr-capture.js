@@ -264,14 +264,11 @@ class OCRCapture {
     // First try to use real OCR, fall back to canvas-based text analysis
     try {
       if (window.Tesseract && typeof window.Tesseract.createWorker === 'function') {
-        console.log('Attempting real OCR with Tesseract...');
         return await this.realOCRSimplified(base64Image);
       } else {
-        console.log('Tesseract not available, using canvas-based analysis...');
         return await this.canvasBasedOCR(base64Image);
       }
     } catch (error) {
-      console.error('OCR failed, falling back to canvas analysis:', error);
       return await this.canvasBasedOCR(base64Image);
     }
   }
@@ -308,11 +305,9 @@ class OCRCapture {
       this.updateProcessingMessage('✅ OCR completed successfully!');
       this.updateProgressBar(1.0);
       
-      console.log('Real OCR result:', text);
       return text;
       
     } catch (error) {
-      console.error('Simplified OCR failed:', error);
       throw error;
     }
   }
@@ -336,10 +331,8 @@ class OCRCapture {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       if (selectedContent) {
-        console.log('Canvas-based analysis found content:', selectedContent);
         return selectedContent;
       } else {
-        console.log('No recognizable table content found, providing helpful message');
         return `NO_TABLE_DETECTED
 Message	Details
 Selection Area	${Math.round(bounds.width)} x ${Math.round(bounds.height)} pixels
@@ -365,12 +358,9 @@ Action	Please try selecting a different area`;
         bounds.top + bounds.height / 2
       );
       
-      console.log('Elements at selection center:', elements);
-      
       // Look for table elements first
       for (const element of elements) {
         if (element.tagName === 'TABLE') {
-          console.log('Found HTML table in selection');
           return this.extractTableContent(element);
         }
         
@@ -385,7 +375,6 @@ Action	Please try selecting a different area`;
       return this.extractTextFromArea(bounds);
       
     } catch (error) {
-      console.error('Error analyzing selected area:', error);
       return null;
     }
   }
@@ -405,7 +394,6 @@ Action	Please try selecting a different area`;
       
       if (tableData.length > 0) {
         const result = tableData.join('\n');
-        console.log('Extracted table content:', result);
         return result;
       }
       
@@ -459,7 +447,6 @@ Action	Please try selecting a different area`;
       
       if (extractedRows.length >= 2) {
         const result = extractedRows.join('\n');
-        console.log('Extracted structured content:', result);
         return result;
       }
       
@@ -501,7 +488,6 @@ Action	Please try selecting a different area`;
       
       if (textNodes.length > 0) {
         const result = textNodes.join(' ').replace(/\s+/g, ' ');
-        console.log('Extracted text from area:', result);
         
         // Try to format as table if it looks structured
         if (this.looksLikeStructuredData(result)) {
@@ -512,7 +498,7 @@ Action	Please try selecting a different area`;
       }
       
     } catch (error) {
-      console.error('Error extracting text from area:', error);
+      // Error extracting text from area
     }
     return null;
   }
@@ -599,12 +585,9 @@ Action	Please try selecting a different area`;
       const bounds = this.getSelectionBounds();
       const tableType = this.determineTableType(bounds, base64Image);
       
-      console.log(`Intelligent OCR: Detected ${tableType} table based on selection`);
-      
       return this.generateTableByType(tableType, bounds);
       
     } catch (error) {
-      console.error('Intelligent OCR Error:', error);
       return `Error	Message
 OCR Failed	${error.message}
 Status	Please try again`;
@@ -768,7 +751,6 @@ Bounce Rate	${this.randomNumber(30, 60)}%	${this.randomNumber(35, 65)}%	-${this.
     try {
       // Load Tesseract.js if not already loaded
       if (!window.Tesseract) {
-        console.log('Tesseract not available, attempting to load...');
         await this.loadTesseract();
       }
       
@@ -781,10 +763,9 @@ Bounce Rate	${this.randomNumber(30, 60)}%	${this.randomNumber(35, 65)}%	-${this.
       this.updateProcessingMessage('🔍 Performing OCR analysis...');
       
       // Configure Tesseract for better table recognition
-      console.log('Creating Tesseract worker...');
       const worker = await window.Tesseract.createWorker();
       
-      console.log('Worker created, loading language...');
+      // Load language and initialize
       
       // Manual progress updates since we can't use logger callback
       this.updateProcessingMessage('⚙️ Loading OCR engine...');
@@ -798,8 +779,6 @@ Bounce Rate	${this.randomNumber(30, 60)}%	${this.randomNumber(35, 65)}%	-${this.
       
       await worker.initialize('eng');
       
-      console.log('Worker initialized, setting parameters...');
-      
       this.updateProcessingMessage('🔧 Configuring OCR settings...');
       this.updateProgressBar(0.6);
       
@@ -810,7 +789,7 @@ Bounce Rate	${this.randomNumber(30, 60)}%	${this.randomNumber(35, 65)}%	-${this.
         'preserve_interword_spaces': '1'
       });
       
-      console.log('Starting OCR recognition...');
+      // Start OCR recognition
       
       // Perform OCR on the image
       this.updateProcessingMessage('🔍 Reading text from image...');
@@ -821,18 +800,12 @@ Bounce Rate	${this.randomNumber(30, 60)}%	${this.randomNumber(35, 65)}%	-${this.
       this.updateProcessingMessage('🔍 Analyzing text structure...');
       this.updateProgressBar(1.0);
       
-      console.log('OCR Raw Result:', text);
-      console.log('OCR Result Length:', text.length);
-      
       // Clean up worker
-      console.log('Terminating worker...');
       await worker.terminate();
       
       return text;
       
     } catch (error) {
-      console.error('OCR Error:', error);
-      
       // Show detailed error information
       this.updateProcessingMessage('⚠️ OCR failed, using demo data...');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -854,29 +827,23 @@ Note: This is demo data because OCR failed. Please check the console for details
   async loadTesseract() {
     return new Promise((resolve, reject) => {
       if (window.Tesseract) {
-        console.log('Tesseract already loaded');
         resolve();
         return;
       }
       
-      console.log('Loading Tesseract.js...');
       const script = document.createElement('script');
       script.src = chrome.runtime.getURL('libs/tesseract.min.js');
       script.onload = () => {
-        console.log('Tesseract script loaded, checking availability...');
         // Wait a bit for the library to initialize
         setTimeout(() => {
           if (window.Tesseract) {
-            console.log('Tesseract successfully available');
             resolve();
           } else {
-            console.error('Tesseract loaded but not available on window object');
             reject(new Error('Tesseract library not available after loading'));
           }
         }, 1000);
       };
       script.onerror = (error) => {
-        console.error('Failed to load Tesseract script:', error);
         reject(error);
       };
       document.head.appendChild(script);
@@ -901,15 +868,11 @@ Note: This is demo data because OCR failed. Please check the console for details
   parseOCRResultAsTable(ocrText) {
     if (!ocrText) return null;
     
-    console.log('Raw OCR Text:', ocrText);
-    
     // Clean up the text
     let cleanedText = ocrText
       .replace(/\r/g, '') // Remove carriage returns
       .replace(/\n\s*\n/g, '\n') // Remove empty lines
       .trim();
-    
-    console.log('Cleaned OCR Text:', cleanedText);
     
     const lines = cleanedText.split('\n').filter(line => line.trim());
     if (lines.length < 2) return null;
@@ -955,8 +918,6 @@ Note: This is demo data because OCR failed. Please check the console for details
         const mode = this.findMode(columnCounts);
         consistentRows = columnCounts.filter(count => Math.abs(count - mode) <= 1).length;
         
-        console.log(`Separator "${sep.name}": ${consistentRows} consistent rows with ~${mode} columns`);
-        
         if (consistentRows > maxConsistentColumns) {
           maxConsistentColumns = consistentRows;
           bestSeparator = sep;
@@ -966,11 +927,8 @@ Note: This is demo data because OCR failed. Please check the console for details
     }
     
     if (!bestSeparator || maxConsistentColumns < 2) {
-      console.log('No suitable separator found');
       return null;
     }
-    
-    console.log(`Using separator: "${bestSeparator.name}"`);
     
     // Parse table with best separator
     for (const line of lines) {
@@ -990,7 +948,6 @@ Note: This is demo data because OCR failed. Please check the console for details
       }
     }
     
-    console.log('Parsed table:', table);
     return table.length > 1 ? table : null;
   }
   
@@ -1177,26 +1134,55 @@ Note: This is demo data because OCR failed. Please check the console for details
   }
   
   useTable(tableData) {
-    // Add the OCR table to the detected tables
-    if (window.tableDetector) {
-      const ocrTable = {
-        type: 'ocr',
-        element: null,
-        data: tableData,
-        preview: this.generatePreview(tableData),
-        id: `ocr-${Date.now()}`
-      };
+    try {
+      // Convert string data to array format if needed
+      let processedData = tableData;
+      if (typeof tableData === 'string') {
+        processedData = this.parseOCRResultAsTable(tableData);
+      }
       
-      window.tableDetector.tables.push(ocrTable);
+      if (!processedData || processedData.length === 0) {
+        this.showError('No valid table data found. Please try selecting a clearer table area.');
+        return;
+      }
       
-      // Notify popup to refresh
-      chrome.runtime.sendMessage({
-        action: 'ocrTableDetected',
-        table: ocrTable
-      });
+      // Add the OCR table to the detected tables
+      if (window.tableDetector) {
+        const ocrTable = {
+          type: 'ocr',
+          element: null,
+          data: processedData,
+          preview: this.generatePreview(processedData),
+          id: `ocr-${Date.now()}`
+        };
+        
+        window.tableDetector.tables.push(ocrTable);
+        
+        // Notify popup to refresh
+        chrome.runtime.sendMessage({
+          action: 'ocrTableDetected',
+          table: ocrTable
+        });
+        
+        // Show success message briefly before closing
+        this.removeExistingDialogs();
+        const successDialog = document.createElement('div');
+        successDialog.className = 'ocr-processing';
+        successDialog.innerHTML = `
+          <h3>✅ Table Added Successfully</h3>
+          <p>OCR table has been added to the detected tables list</p>
+        `;
+        document.body.appendChild(successDialog);
+        
+        setTimeout(() => {
+          this.cancel();
+        }, 1500);
+      } else {
+        this.showError('Table detector not available. Please refresh the page and try again.');
+      }
+    } catch (error) {
+      this.showError('Failed to add table: ' + error.message);
     }
-    
-    this.cancel();
   }
   
   generatePreview(data) {
@@ -1251,11 +1237,5 @@ Note: This is demo data because OCR failed. Please check the console for details
 // Global OCR instance
 window.ocrCapture = new OCRCapture();
 
-// Debug: Check if we're ready
-console.log('OCR Capture initialized with real content analysis');
-console.log('Tesseract available:', !!window.Tesseract);
-if (window.Tesseract) {
-  console.log('Will use real OCR when possible');
-} else {
-  console.log('Will use DOM-based content analysis');
-}
+// Initialize OCR Capture with content analysis
+// Will use real OCR with Tesseract when available, otherwise DOM-based content analysis

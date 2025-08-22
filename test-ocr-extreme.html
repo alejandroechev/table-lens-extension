@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extreme OCR Challenge Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #666;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 5px;
+        }
+        
+        /* Extreme Low Contrast */
+        .ultra-low-contrast {
+            background-color: #fbfbfb;
+            color: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .dark-on-dark {
+            background-color: #1a1a1a;
+            color: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        /* Busy Patterns */
+        .checkerboard {
+            background: 
+                linear-gradient(45deg, #e0e0e0 25%, transparent 25%), 
+                linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #e0e0e0 75%), 
+                linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+            background-size: 8px 8px;
+            background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        .interference-pattern {
+            background: 
+                radial-gradient(circle at 20px 80px, #e0e0e0 2px, transparent 2px),
+                radial-gradient(circle at 80px 20px, #e0e0e0 2px, transparent 2px),
+                radial-gradient(circle at 40px 40px, #e0e0e0 1px, transparent 1px);
+            background-size: 100px 100px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        /* Extreme Fonts */
+        .ultra-thin {
+            font-family: 'Arial', sans-serif;
+            font-weight: 100;
+            font-size: 16px;
+            color: #666;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+        }
+        
+        .ultra-condensed {
+            font-family: 'Arial Narrow', Arial, sans-serif;
+            font-stretch: ultra-condensed;
+            letter-spacing: -2px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+        }
+        
+        .pixelated {
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            line-height: 1.2;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+            image-rendering: pixelated;
+        }
+        
+        /* Lighting Effects */
+        .vignette {
+            background: radial-gradient(ellipse at center, #ffffff 30%, #cccccc 100%);
+            padding: 20px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        .spotlight {
+            background: radial-gradient(circle at 60% 40%, rgba(255,255,255,1) 20%, rgba(200,200,200,0.8) 60%, rgba(150,150,150,0.6) 100%);
+            padding: 20px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        /* Distortion Effects */
+        .wave-distort {
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(0,0,0,0.05) 25%, 
+                transparent 50%, 
+                rgba(0,0,0,0.05) 75%, 
+                transparent 100%
+            );
+            background-size: 20px 100%;
+            padding: 15px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        .blur-edges {
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .blur-edges::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to right, 
+                rgba(255,255,255,0.8) 0%, 
+                transparent 10%, 
+                transparent 90%, 
+                rgba(255,255,255,0.8) 100%
+            );
+            pointer-events: none;
+        }
+        
+        /* Complex Tables */
+        .complex-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-size: 11px;
+        }
+        
+        .complex-table th,
+        .complex-table td {
+            border: 1px solid #ddd;
+            padding: 4px 6px;
+            position: relative;
+        }
+        
+        .complex-table th {
+            background: linear-gradient(135deg, #f8f8f8, #e8e8e8);
+            color: #555;
+        }
+        
+        .complex-table tr:nth-child(even) {
+            background: rgba(240, 240, 240, 0.3);
+        }
+        
+        .complex-table .number {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .complex-table .status {
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+        
+        /* Overlays and Watermarks */
+        .watermark-bg {
+            background: #fff;
+            position: relative;
+            padding: 20px;
+            margin: 10px 0;
+        }
+        
+        .watermark-bg::before {
+            content: 'CONFIDENTIAL';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 48px;
+            color: rgba(200, 200, 200, 0.1);
+            font-weight: bold;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .watermark-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Color Blindness Simulation */
+        .protanopia {
+            filter: 
+                sepia(100%) 
+                saturate(0%) 
+                hue-rotate(90deg) 
+                saturate(200%) 
+                brightness(1.2);
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+        }
+        
+        .deuteranopia {
+            filter: 
+                sepia(100%) 
+                saturate(0%) 
+                hue-rotate(180deg) 
+                saturate(150%) 
+                brightness(1.1);
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff;
+        }
+        
+        /* Screen Artifacts */
+        .scan-lines {
+            background: linear-gradient(
+                transparent 50%, 
+                rgba(0, 0, 0, 0.03) 50%
+            );
+            background-size: 100% 2px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #333;
+        }
+        
+        .crt-effect {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            margin: 10px 0;
+            text-shadow: 0 0 5px #0f0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .crt-effect::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 0, 0.1) 2px,
+                rgba(0, 255, 0, 0.1) 4px
+            );
+            pointer-events: none;
+        }
+        
+        /* Print Simulation */
+        .faded-print {
+            background: #fafafa;
+            color: #888;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Times New Roman', serif;
+            position: relative;
+        }
+        
+        .faded-print::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 1px,
+                    rgba(0,0,0,0.02) 1px,
+                    rgba(0,0,0,0.02) 2px
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 1px,
+                    rgba(0,0,0,0.01) 1px,
+                    rgba(0,0,0,0.01) 2px
+                );
+            pointer-events: none;
+        }
+        
+        .old-photocopy {
+            background: #f8f8f6;
+            color: #333;
+            padding: 15px;
+            margin: 10px 0;
+            position: relative;
+            transform: rotate(0.5deg);
+        }
+        
+        .old-photocopy::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: 
+                radial-gradient(ellipse 800px 600px at 200px 100px, transparent 20%, rgba(0,0,0,0.1) 21%, rgba(0,0,0,0.1) 25%, transparent 26%),
+                radial-gradient(ellipse 600px 400px at 400px 300px, transparent 30%, rgba(0,0,0,0.05) 31%, rgba(0,0,0,0.05) 35%, transparent 36%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Extreme OCR Challenge Tests</h1>
+    <p>This page contains the most challenging OCR scenarios to stress-test text recognition capabilities.</p>
+    
+    <div class="test-section">
+        <div class="test-title">1. Ultra Low Contrast</div>
+        
+        <div class="ultra-low-contrast">
+            <table class="complex-table" style="color: inherit;">
+                <tr>
+                    <th>Metric</th>
+                    <th>Current</th>
+                    <th>Target</th>
+                    <th>Variance</th>
+                </tr>
+                <tr>
+                    <td>Response Time</td>
+                    <td class="number">125ms</td>
+                    <td class="number">100ms</td>
+                    <td class="number">+25%</td>
+                </tr>
+                <tr>
+                    <td>Throughput</td>
+                    <td class="number">1,247</td>
+                    <td class="number">1,500</td>
+                    <td class="number">-16.9%</td>
+                </tr>
+                <tr>
+                    <td>Error Rate</td>
+                    <td class="number">0.03%</td>
+                    <td class="number">0.01%</td>
+                    <td class="number">+200%</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="dark-on-dark">
+            Critical System Alert: Memory usage at 94.7% capacity. Immediate action required.
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">2. Busy Background Patterns</div>
+        
+        <div class="checkerboard">
+            <table class="complex-table">
+                <tr>
+                    <th>ID</th>
+                    <th>Transaction</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>TX001</td>
+                    <td>Payment Processing</td>
+                    <td class="number">$2,847.50</td>
+                    <td class="status">PENDING</td>
+                </tr>
+                <tr>
+                    <td>TX002</td>
+                    <td>Refund Request</td>
+                    <td class="number">-$156.25</td>
+                    <td class="status">APPROVED</td>
+                </tr>
+                <tr>
+                    <td>TX003</td>
+                    <td>Subscription Renewal</td>
+                    <td class="number">$99.99</td>
+                    <td class="status">COMPLETED</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="interference-pattern">
+            Network Statistics: Packets Sent: 15,847 | Packets Received: 15,832 | Packet Loss: 0.095%
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">3. Extreme Font Challenges</div>
+        
+        <div class="ultra-thin">
+            <table class="complex-table" style="font-weight: inherit;">
+                <tr>
+                    <th>Component</th>
+                    <th>Version</th>
+                    <th>Last Updated</th>
+                </tr>
+                <tr>
+                    <td>Authentication Service</td>
+                    <td>v2.1.3</td>
+                    <td>2024-03-15</td>
+                </tr>
+                <tr>
+                    <td>Database Connector</td>
+                    <td>v1.8.7</td>
+                    <td>2024-03-12</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="ultra-condensed">
+            SYSTEMCRITICALWARNING:DATABASECONNECTIONLOST-RETRYINGIN30SECONDS
+        </div>
+        
+        <div class="pixelated">
+            <table class="complex-table" style="font-size: inherit; font-family: inherit;">
+                <tr><th>LOG</th><th>TIME</th><th>MSG</th></tr>
+                <tr><td>ERR</td><td>14:23:45</td><td>CONN TIMEOUT</td></tr>
+                <tr><td>INF</td><td>14:23:46</td><td>RETRY ATTEMPT</td></tr>
+                <tr><td>SUC</td><td>14:23:47</td><td>CONN RESTORED</td></tr>
+            </table>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">4. Lighting and Shadow Effects</div>
+        
+        <div class="vignette">
+            <table class="complex-table">
+                <tr>
+                    <th>Resource</th>
+                    <th>Allocated</th>
+                    <th>Used</th>
+                    <th>Available</th>
+                </tr>
+                <tr>
+                    <td>CPU Cores</td>
+                    <td class="number">16</td>
+                    <td class="number">12.3</td>
+                    <td class="number">3.7</td>
+                </tr>
+                <tr>
+                    <td>Memory (GB)</td>
+                    <td class="number">64</td>
+                    <td class="number">47.8</td>
+                    <td class="number">16.2</td>
+                </tr>
+                <tr>
+                    <td>Storage (TB)</td>
+                    <td class="number">5.0</td>
+                    <td class="number">3.2</td>
+                    <td class="number">1.8</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="spotlight">
+            Priority Queue: High: 23 items | Medium: 67 items | Low: 145 items | Total: 235 items
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">5. Distortion Effects</div>
+        
+        <div class="wave-distort">
+            <table class="complex-table">
+                <tr>
+                    <th>Security Event</th>
+                    <th>Severity</th>
+                    <th>Count</th>
+                    <th>Last Occurrence</th>
+                </tr>
+                <tr>
+                    <td>Failed Login Attempt</td>
+                    <td>Medium</td>
+                    <td class="number">47</td>
+                    <td>2 minutes ago</td>
+                </tr>
+                <tr>
+                    <td>Suspicious IP Access</td>
+                    <td>High</td>
+                    <td class="number">3</td>
+                    <td>15 minutes ago</td>
+                </tr>
+                <tr>
+                    <td>Privilege Escalation</td>
+                    <td>Critical</td>
+                    <td class="number">1</td>
+                    <td>45 minutes ago</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="blur-edges">
+            <div style="position: relative; z-index: 3;">
+                Application Performance: Response Time: 847ms | Memory Usage: 2.3GB | CPU Load: 78%
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">6. Watermarks and Overlays</div>
+        
+        <div class="watermark-bg">
+            <div class="watermark-content">
+                <table class="complex-table">
+                    <tr>
+                        <th>Financial Data</th>
+                        <th>Q1 2024</th>
+                        <th>Q2 2024</th>
+                        <th>Change</th>
+                    </tr>
+                    <tr>
+                        <td>Revenue</td>
+                        <td class="number">$1.2M</td>
+                        <td class="number">$1.4M</td>
+                        <td class="number">+16.7%</td>
+                    </tr>
+                    <tr>
+                        <td>Expenses</td>
+                        <td class="number">$0.8M</td>
+                        <td class="number">$0.9M</td>
+                        <td class="number">+12.5%</td>
+                    </tr>
+                    <tr>
+                        <td>Profit</td>
+                        <td class="number">$0.4M</td>
+                        <td class="number">$0.5M</td>
+                        <td class="number">+25.0%</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">7. Color Vision Challenges</div>
+        
+        <div class="protanopia">
+            <table class="complex-table">
+                <tr>
+                    <th style="background: #ff4444; color: #ffffff;">Alert Type</th>
+                    <th style="background: #44ff44; color: #000000;">Count</th>
+                    <th style="background: #4444ff; color: #ffffff;">Status</th>
+                </tr>
+                <tr>
+                    <td style="color: #ff0000;">Critical</td>
+                    <td class="number">5</td>
+                    <td style="color: #ff8800;">Active</td>
+                </tr>
+                <tr>
+                    <td style="color: #00ff00;">Normal</td>
+                    <td class="number">234</td>
+                    <td style="color: #00aa00;">Resolved</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="deuteranopia">
+            Traffic Light Status: Red: 12 intersections | Yellow: 3 intersections | Green: 87 intersections
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">8. Screen Artifacts</div>
+        
+        <div class="scan-lines">
+            <table class="complex-table">
+                <tr>
+                    <th>Monitor</th>
+                    <th>Resolution</th>
+                    <th>Refresh Rate</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>Display 1</td>
+                    <td>1920x1080</td>
+                    <td class="number">60Hz</td>
+                    <td class="status">ACTIVE</td>
+                </tr>
+                <tr>
+                    <td>Display 2</td>
+                    <td>2560x1440</td>
+                    <td class="number">144Hz</td>
+                    <td class="status">STANDBY</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="crt-effect">
+            > SYSTEM DIAGNOSTIC MODE ACTIVE
+            > CPU: OK | RAM: OK | DISK: WARNING
+            > TEMPERATURE: 67°C | FAN SPEED: 2400 RPM
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">9. Print Simulation</div>
+        
+        <div class="faded-print">
+            <table class="complex-table" style="color: inherit; font-family: inherit;">
+                <tr>
+                    <th>Document</th>
+                    <th>Pages</th>
+                    <th>Size</th>
+                    <th>Modified</th>
+                </tr>
+                <tr>
+                    <td>report_q2_2024.pdf</td>
+                    <td class="number">47</td>
+                    <td class="number">2.3 MB</td>
+                    <td>Mar 15, 2024</td>
+                </tr>
+                <tr>
+                    <td>budget_analysis.xlsx</td>
+                    <td class="number">12</td>
+                    <td class="number">847 KB</td>
+                    <td>Mar 12, 2024</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="old-photocopy">
+            CONFIDENTIAL FINANCIAL REPORT - AUTHORIZED PERSONNEL ONLY
+            Balance Sheet Summary: Assets: $2.4M | Liabilities: $1.1M | Equity: $1.3M
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">10. Ultimate Challenge</div>
+        
+        <div style="
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(255,0,0,0.1) 20%, transparent 21%),
+                radial-gradient(circle at 75% 75%, rgba(0,255,0,0.1) 20%, transparent 21%),
+                linear-gradient(45deg, rgba(0,0,255,0.05) 25%, transparent 25%, transparent 75%, rgba(0,0,255,0.05) 75%);
+            background-size: 50px 50px, 50px 50px, 20px 20px;
+            color: #444;
+            font-family: 'Times New Roman', serif;
+            font-size: 11px;
+            padding: 20px;
+            margin: 10px 0;
+            transform: rotate(-0.5deg) skew(1deg);
+            filter: contrast(0.8) brightness(1.1);
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="position: relative; z-index: 2;">
+                <table class="complex-table" style="
+                    color: inherit; 
+                    font-size: inherit; 
+                    font-family: inherit;
+                    background: rgba(255,255,255,0.6);
+                    border: 1px solid rgba(150,150,150,0.3);
+                ">
+                    <tr>
+                        <th style="background: rgba(200,200,200,0.3); color: #555; font-size: 10px;">Complex ID</th>
+                        <th style="background: rgba(200,200,200,0.3); color: #555; font-size: 10px;">Measurement</th>
+                        <th style="background: rgba(200,200,200,0.3); color: #555; font-size: 10px;">Tolerance</th>
+                        <th style="background: rgba(200,200,200,0.3); color: #555; font-size: 10px;">Status</th>
+                    </tr>
+                    <tr style="background: rgba(240,240,240,0.2);">
+                        <td>SYS-001-α</td>
+                        <td class="number">94.73%</td>
+                        <td class="number">±0.05%</td>
+                        <td class="status" style="color: #666;">NOMINAL</td>
+                    </tr>
+                    <tr>
+                        <td>SYS-002-β</td>
+                        <td class="number">87.21%</td>
+                        <td class="number">±0.10%</td>
+                        <td class="status" style="color: #888;">MARGINAL</td>
+                    </tr>
+                    <tr style="background: rgba(240,240,240,0.2);">
+                        <td>SYS-003-γ</td>
+                        <td class="number">76.45%</td>
+                        <td class="number">±0.15%</td>
+                        <td class="status" style="color: #aaa;">DEGRADED</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(45deg);
+                font-size: 72px;
+                color: rgba(180, 180, 180, 0.08);
+                font-weight: bold;
+                z-index: 1;
+                pointer-events: none;
+            ">SAMPLE</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 50px; padding: 20px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+        <h3>⚠️ Extreme Test Guidelines</h3>
+        <p><strong>Warning:</strong> These tests are designed to challenge OCR systems beyond normal operating conditions.</p>
+        
+        <h4>Test Scenarios Include:</h4>
+        <ul>
+            <li><strong>Ultra Low Contrast:</strong> Text barely visible against background</li>
+            <li><strong>Pattern Interference:</strong> Complex background patterns that confuse recognition</li>
+            <li><strong>Font Extremes:</strong> Ultra-thin, condensed, and pixelated fonts</li>
+            <li><strong>Lighting Effects:</strong> Uneven lighting, vignettes, and spotlights</li>
+            <li><strong>Visual Distortions:</strong> Waves, blurs, rotations, and skewing</li>
+            <li><strong>Overlay Interference:</strong> Watermarks and semi-transparent overlays</li>
+            <li><strong>Color Vision Issues:</strong> Simulated color blindness scenarios</li>
+            <li><strong>Screen Artifacts:</strong> CRT effects, scan lines, and digital noise</li>
+            <li><strong>Print Simulation:</strong> Faded photocopies and aging effects</li>
+            <li><strong>Combined Challenges:</strong> Multiple difficulties simultaneously</li>
+        </ul>
+        
+        <h4>Expected Results:</h4>
+        <p>Most OCR systems will struggle with these tests. Success rates may be significantly lower than standard tests. Use these to:</p>
+        <ul>
+            <li>Identify the limits of your OCR system</li>
+            <li>Test error handling and graceful degradation</li>
+            <li>Evaluate backup content analysis methods</li>
+            <li>Benchmark improvements in recognition algorithms</li>
+        </ul>
+        
+        <p><em>Note: These extreme conditions are rarely encountered in normal usage but help ensure robust performance in edge cases.</em></p>
+    </div>
+</body>
+</html>
