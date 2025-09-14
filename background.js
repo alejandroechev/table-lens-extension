@@ -47,6 +47,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'extractAllTablesFromPDF') {
+    // Allow optional pages array (fallback if service still requires pages)
     handleAllTablesExtraction(request.pdfUrl, request.pages)
       .then(result => {
         sendResponse({ success: true, data: result });
@@ -116,8 +117,10 @@ async function handleImageExtraction(dataUrl) {
 async function handleAllTablesExtraction(pdfUrl, pages) {
   try {
     if (!pdfUrl) throw new Error('Missing PDF URL');
-    if (!Array.isArray(pages) || pages.length === 0) throw new Error('No pages specified');
-    const payload = { pdf_url: pdfUrl, pages };
+    // If pages provided (fallback scenario) include them; otherwise rely on service auto-detection
+    const payload = pages && Array.isArray(pages) && pages.length > 0
+      ? { pdf_url: pdfUrl, pages }
+      : { pdf_url: pdfUrl };
     console.log('[BatchExtract] Request payload (JSON):');
     console.log(JSON.stringify(payload, null, 2));
     const response = await fetch('https://table-extract-service-production.up.railway.app/extract-all-tables-from-url', {

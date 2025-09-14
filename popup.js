@@ -41,19 +41,7 @@ class PopupController {
   }
 
   async startAllTablesExtraction() {
-    // Prompt for page range
-    const input = prompt('Enter page range (e.g. 1-3,5,7). Max 20 pages.');
-    if (input == null) return; // cancelled
-    const pages = this.parsePageRange(input);
-    if (!pages.success) {
-      this.showStatus('Page range error: ' + pages.error, 'error');
-      return;
-    }
-    if (pages.pages.length === 0) {
-      this.showStatus('No valid pages specified.', 'error');
-      return;
-    }
-    this.showStatus('Preparing batch extraction for pages: ' + pages.pages.map(p=>p+1).join(', '), 'info');
+    this.showStatus('Extracting all tables in PDF...', 'info');
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       // Ask content script to provide PDF URL (reuse OCR capture util indirectly if possible)
@@ -64,11 +52,19 @@ class PopupController {
       }
       const resp = await chrome.runtime.sendMessage({
         action: 'extractAllTablesFromPDF',
-        pdfUrl: pdfInfo.pdfUrl,
-        pages: pages.pages
+        pdfUrl: pdfInfo.pdfUrl
       });
       if (!resp || !resp.success) {
-        this.showStatus('Extraction failed: ' + (resp?.error || 'Unknown error'), 'error');
+        // Fallback: some service versions still require explicit pages
+        const errMsg = resp?.error || 'Unknown error';
+        if (/no pages specified/i.test(errMsg)) {
+          const fallback = await this.fallbackPageRangeFlow(pdfInfo.pdfUrl, tab.id);
+          if (!fallback) {
+            this.showStatus('Extraction cancelled (pages required).', 'error');
+          }
+          return; // flow handled
+        }
+        this.showStatus('Extraction failed: ' + errMsg, 'error');
         return;
       }
       const result = resp.data;
@@ -83,7 +79,7 @@ class PopupController {
       }
       console.log('[Popup Batch] Raw service tables length:', rawTables.length, 'Sample first:', rawTables[0]);
       if (rawTables.length === 0) {
-        this.showStatus('No tables found in specified pages.', 'error');
+        this.showStatus('No tables found in PDF.', 'error');
         return;
       }
       // Normalize to a structure expected by content script: each object should expose rows directly.
@@ -115,7 +111,7 @@ class PopupController {
         });
       });
       this.renderTableList();
-      this.showStatus(`Added ${normalized.length} table(s) from batch extraction`, 'success');
+      this.showStatus(`Added ${normalized.length} table(s) from PDF`, 'success');
       setTimeout(()=>this.hideStatus(), 2500);
     } catch (e) {
       console.error('Batch extraction error:', e);
@@ -123,32 +119,100 @@ class PopupController {
     }
   }
 
+  // Fallback flow when backend insists on pages parameter
+  async fallbackPageRangeFlow(pdfUrl, tabId) {
+    try {
+      const input = prompt('Service requires explicit page list. Enter page range (e.g. 1-3,5). Max 20 pages.');
+      if (input == null) return false;
+      const parsed = this.parsePageRange(input);
+      if (!parsed.success) {
+        this.showStatus('Page range error: ' + parsed.error, 'error');
+        return false;
+      }
+      if (parsed.pages.length === 0) {
+        this.showStatus('No valid pages specified.', 'error');
+        return false;
+      }
+      this.showStatus('Retrying with pages: ' + parsed.pages.map(p=>p+1).join(', '), 'info');
+      const resp = await chrome.runtime.sendMessage({
+        action: 'extractAllTablesFromPDF',
+        pdfUrl,
+        pages: parsed.pages
+      });
+      if (!resp || !resp.success) {
+        this.showStatus('Fallback extraction failed: ' + (resp?.error || 'Unknown error'), 'error');
+        return false;
+      }
+      const result = resp.data;
+      let rawTables;
+      if (Array.isArray(result)) rawTables = result; else if (Array.isArray(result?.tables)) rawTables = result.tables; else rawTables = [];
+      if (rawTables.length === 0) {
+        this.showStatus('No tables found for specified pages.', 'error');
+        return true; // handled, but empty
+      }
+      const normalized = rawTables.map(rt => {
+        const rows = rt.rows || rt.data || (rt.table && rt.table.rows) || [];
+        return {
+          rows,
+          page: rt.page != null ? rt.page : rt.table?.page,
+          table_index: rt.table_index != null ? rt.table_index : rt.table?.table_index,
+          bbox: rt.bbox || rt.table?.bbox || null
+        };
+      });
+      const addResp = await chrome.tabs.sendMessage(tabId, { action: 'addBatchExtractedTables', tables: normalized });
+      if (!addResp || !addResp.success) {
+        this.showStatus('Failed injecting tables after fallback.', 'error');
+        return false;
+      }
+      normalized.forEach(t => {
+        const preview = this.generatePreviewFromRaw(t.rows || []);
+        this.tables.push({
+          type: 'pdf-batch',
+          columns: (t.rows && Array.isArray(t.rows[0]) ? t.rows[0] : []),
+          preview,
+          page: t.page,
+          tableIndex: t.table_index
+        });
+      });
+      this.renderTableList();
+      this.showStatus(`Added ${normalized.length} table(s) from specified pages`, 'success');
+      setTimeout(()=>this.hideStatus(), 2500);
+      return true;
+    } catch (e) {
+      console.error('Fallback page flow error:', e);
+      this.showStatus('Fallback error: ' + e.message, 'error');
+      return false;
+    }
+  }
+
+  // Reintroduced page range parser for fallback only
   parsePageRange(input) {
     try {
-      const cleaned = input.replace(/\s+/g,'');
-      if (!cleaned) return { success:false, error:'Empty input'};
+      const cleaned = (input||'').replace(/\s+/g,'');
+      if (!cleaned) return { success:false, error:'Empty input' };
       const parts = cleaned.split(',');
       const set = new Set();
       for (const part of parts) {
         if (!part) continue;
         if (part.includes('-')) {
           const [a,b] = part.split('-').map(n=>parseInt(n,10));
-          if (isNaN(a)||isNaN(b)||a<1||b<1) return {success:false,error:'Invalid range token: '+part};
+          if (isNaN(a)||isNaN(b)||a<1||b<1) return {success:false,error:'Invalid range: '+part};
           const start = Math.min(a,b); const end = Math.max(a,b);
-            for (let p=start;p<=end;p++) set.add(p-1); // store zero-based
+          for (let p=start; p<=end; p++) set.add(p-1);
         } else {
           const v = parseInt(part,10);
-          if (isNaN(v) || v<1) return {success:false,error:'Invalid page number: '+part};
+          if (isNaN(v)||v<1) return {success:false,error:'Invalid page: '+part};
           set.add(v-1);
         }
       }
       const arr = Array.from(set).sort((x,y)=>x-y);
       if (arr.length>20) return {success:false,error:'More than 20 pages specified ('+arr.length+')'};
-      return {success:true,pages:arr};
+      return { success:true, pages: arr };
     } catch (e) {
-      return {success:false,error:e.message};
+      return { success:false, error: e.message };
     }
   }
+
 
   generatePreviewFromRaw(data) {
     if (!Array.isArray(data) || data.length===0) return '';

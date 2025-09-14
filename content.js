@@ -297,12 +297,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     tableDetector.selectTable(request.index);
     sendResponse({ success: true });
   } else if (request.action === 'getTableData') {
-    const tables = tableDetector.detectTables();
+    // Do NOT re-run detectTables() here; it would wipe dynamically added pdf-batch tables
+    const tables = tableDetector.tables;
     if (request.index >= 0 && request.index < tables.length) {
-      sendResponse({ 
-        success: true, 
-        data: tables[request.index].data 
-      });
+      sendResponse({ success: true, data: tables[request.index].data });
     } else {
       sendResponse({ 
         success: false, 
