@@ -19,6 +19,7 @@ class PopupController {
       scanTables: document.getElementById('scanTables'),
       ocrCapture: document.getElementById('ocrCapture'),
   imageCapture: document.getElementById('imageCapture'),
+    allTables: document.getElementById('allTables'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
       exportSVG: document.getElementById('exportSVG'),
@@ -30,12 +31,134 @@ class PopupController {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
   this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
   this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
+  this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
     this.elements.generateChart.addEventListener('click', () => this.generateChart());
     this.elements.exportPNG.addEventListener('click', () => this.exportChart('png'));
     this.elements.exportSVG.addEventListener('click', () => this.exportChart('svg'));
     
     this.elements.chartType.addEventListener('change', () => this.updateChartOptions());
     this.elements.xColumn.addEventListener('change', () => this.validateChartInputs());
+  }
+
+  async startAllTablesExtraction() {
+    // Prompt for page range
+    const input = prompt('Enter page range (e.g. 1-3,5,7). Max 20 pages.');
+    if (input == null) return; // cancelled
+    const pages = this.parsePageRange(input);
+    if (!pages.success) {
+      this.showStatus('Page range error: ' + pages.error, 'error');
+      return;
+    }
+    if (pages.pages.length === 0) {
+      this.showStatus('No valid pages specified.', 'error');
+      return;
+    }
+    this.showStatus('Preparing batch extraction for pages: ' + pages.pages.map(p=>p+1).join(', '), 'info');
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      // Ask content script to provide PDF URL (reuse OCR capture util indirectly if possible)
+      const pdfInfo = await chrome.tabs.sendMessage(tab.id, { action: 'getPDFContextInfo' });
+      if (!pdfInfo || !pdfInfo.success) {
+        this.showStatus('Not on a PDF page or cannot detect PDF URL.', 'error');
+        return;
+      }
+      const resp = await chrome.runtime.sendMessage({
+        action: 'extractAllTablesFromPDF',
+        pdfUrl: pdfInfo.pdfUrl,
+        pages: pages.pages
+      });
+      if (!resp || !resp.success) {
+        this.showStatus('Extraction failed: ' + (resp?.error || 'Unknown error'), 'error');
+        return;
+      }
+      const result = resp.data;
+      // Service may return either { tables: [...] } or a raw array
+      let rawTables;
+      if (Array.isArray(result)) {
+        rawTables = result; // already the array of table wrappers
+      } else if (Array.isArray(result?.tables)) {
+        rawTables = result.tables;
+      } else {
+        rawTables = [];
+      }
+      console.log('[Popup Batch] Raw service tables length:', rawTables.length, 'Sample first:', rawTables[0]);
+      if (rawTables.length === 0) {
+        this.showStatus('No tables found in specified pages.', 'error');
+        return;
+      }
+      // Normalize to a structure expected by content script: each object should expose rows directly.
+      const normalized = rawTables.map(rt => {
+        const rows = rt.rows || rt.data || (rt.table && rt.table.rows) || [];
+        return {
+          rows,
+          page: rt.page != null ? rt.page : rt.table?.page,
+          table_index: rt.table_index != null ? rt.table_index : rt.table?.table_index,
+          bbox: rt.bbox || rt.table?.bbox || null
+        };
+      });
+      console.log('[Popup Batch] Normalized tables preview:', normalized.slice(0,2));
+      const addResp = await chrome.tabs.sendMessage(tab.id, { action: 'addBatchExtractedTables', tables: normalized });
+      if (!addResp || !addResp.success) {
+        this.showStatus('Failed injecting tables into page context.', 'error');
+        return;
+      }
+      // Merge into popup list directly too using normalized
+      normalized.forEach(t => {
+        const preview = this.generatePreviewFromRaw(t.rows || []);
+        console.log('[Popup BatchMerge] Normalized table added:', t);
+        this.tables.push({
+          type: 'pdf-batch',
+          columns: (t.rows && Array.isArray(t.rows[0]) ? t.rows[0] : []),
+          preview,
+          page: t.page,
+          tableIndex: t.table_index
+        });
+      });
+      this.renderTableList();
+      this.showStatus(`Added ${normalized.length} table(s) from batch extraction`, 'success');
+      setTimeout(()=>this.hideStatus(), 2500);
+    } catch (e) {
+      console.error('Batch extraction error:', e);
+      this.showStatus('Error during batch extraction: ' + e.message, 'error');
+    }
+  }
+
+  parsePageRange(input) {
+    try {
+      const cleaned = input.replace(/\s+/g,'');
+      if (!cleaned) return { success:false, error:'Empty input'};
+      const parts = cleaned.split(',');
+      const set = new Set();
+      for (const part of parts) {
+        if (!part) continue;
+        if (part.includes('-')) {
+          const [a,b] = part.split('-').map(n=>parseInt(n,10));
+          if (isNaN(a)||isNaN(b)||a<1||b<1) return {success:false,error:'Invalid range token: '+part};
+          const start = Math.min(a,b); const end = Math.max(a,b);
+            for (let p=start;p<=end;p++) set.add(p-1); // store zero-based
+        } else {
+          const v = parseInt(part,10);
+          if (isNaN(v) || v<1) return {success:false,error:'Invalid page number: '+part};
+          set.add(v-1);
+        }
+      }
+      const arr = Array.from(set).sort((x,y)=>x-y);
+      if (arr.length>20) return {success:false,error:'More than 20 pages specified ('+arr.length+')'};
+      return {success:true,pages:arr};
+    } catch (e) {
+      return {success:false,error:e.message};
+    }
+  }
+
+  generatePreviewFromRaw(data) {
+    if (!Array.isArray(data) || data.length===0) return '';
+    const maxCols = 3; const maxRows = 3;
+    const preview = data.slice(0,maxRows).map(r=> r.slice(0,maxCols).map(c=>{
+      if (c==null) return '';
+      const s = String(c);
+      return s.length>15? s.substring(0,12)+'...' : s;
+    }).join(' | ')).join('\n');
+    return preview + (data.length>maxRows?'\n...':'');
   }
   
   async scanForTables() {
@@ -153,7 +276,8 @@ class PopupController {
       'markdown-selection': '📝 Markdown Selection',
       'ocr': '📸 Captured from Screen',
       'pdf': '📄 Extracted from PDF',
-      'image': '🖼️ Image Extraction'
+      'image': '🖼️ Image Extraction',
+      'pdf-batch': '📄 PDF Table (Batch)'
     };
     
     return typeMap[type] || '📋 Table';

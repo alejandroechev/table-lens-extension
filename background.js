@@ -45,6 +45,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     return true;
   }
+
+  if (request.action === 'extractAllTablesFromPDF') {
+    handleAllTablesExtraction(request.pdfUrl, request.pages)
+      .then(result => {
+        sendResponse({ success: true, data: result });
+      })
+      .catch(error => {
+        console.error('All-tables extraction error in background:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
 });
 
 async function handlePDFExtraction(requestData) {
@@ -97,6 +109,33 @@ async function handleImageExtraction(dataUrl) {
     return result;
   } catch (e) {
     console.error('Background: Error calling image extraction service:', e);
+    throw e;
+  }
+}
+
+async function handleAllTablesExtraction(pdfUrl, pages) {
+  try {
+    if (!pdfUrl) throw new Error('Missing PDF URL');
+    if (!Array.isArray(pages) || pages.length === 0) throw new Error('No pages specified');
+    const payload = { pdf_url: pdfUrl, pages };
+    console.log('[BatchExtract] Request payload (JSON):');
+    console.log(JSON.stringify(payload, null, 2));
+    const response = await fetch('https://table-extract-service-production.up.railway.app/extract-all-tables-from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const txt = await response.text();
+      throw new Error(`Service error (${response.status}): ${txt}`);
+    }
+    const result = await response.json();
+    console.log('[BatchExtract] Full response JSON:');
+    try { console.log(JSON.stringify(result, null, 2)); } catch(e) { console.log(result); }
+    console.log('[BatchExtract] Response summary:', { tableCount: result?.tables?.length || 0 });
+    return result;
+  } catch (e) {
+    console.error('Background: Error calling /extract-all-tables-from-url service:', e);
     throw e;
   }
 }

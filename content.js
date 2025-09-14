@@ -344,6 +344,66 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'pdfTableDetected') {
     // Handle PDF table detection notification
     sendResponse({ success: true });
+  } else if (request.action === 'getPDFContextInfo') {
+    try {
+      const pdfUrl = (window.ocrCapture && window.ocrCapture.getPDFUrl) ? window.ocrCapture.getPDFUrl() : null;
+      if (!pdfUrl) {
+        sendResponse({ success:false, error:'PDF URL not found' });
+      } else {
+        sendResponse({ success:true, pdfUrl });
+      }
+    } catch (e) {
+      sendResponse({ success:false, error:e.message });
+    }
+  } else if (request.action === 'addBatchExtractedTables') {
+    try {
+      const tables = request.tables || [];
+      console.log('[BatchInject] Incoming tables raw:', tables);
+      tables.forEach((t, idx) => {
+        // Accept normalized (rows at top-level) or original shape (table.rows)
+        let rows = t.rows || t.data || (t.table && t.table.rows) || [];
+        if (!rows || rows.length === 0) {
+          // Some services return { columns:[], data:[...] } or similar; attempt reconstruction
+          if (t.columns && Array.isArray(t.data)) {
+            rows = [t.columns, ...t.data];
+          } else if (t.columns && Array.isArray(t.rowsData)) {
+            rows = [t.columns, ...t.rowsData];
+          }
+        }
+        if (!rows || rows.length === 0) {
+          console.warn('[BatchInject] Skipping table with no row data at index', idx, t);
+          return;
+        }
+        const preview = tableDetector.generatePreview(rows);
+        const page = t.page != null ? t.page : t.table?.page;
+        const tableIndex = t.table_index != null ? t.table_index : t.index != null ? t.index : t.table?.table_index;
+        console.log('[BatchInject] Adding table', { idx, page, tableIndex, rowCount: rows.length, colCount: rows[0]?.length });
+        tableDetector.tables.push({
+          type: 'pdf-batch',
+          element: null,
+            data: rows,
+            preview: preview,
+            id: `pdf-batch-${Date.now()}-${idx}`,
+            page: page,
+            tableIndex: tableIndex
+        });
+        // Notify popup incrementally if desired
+        chrome.runtime.sendMessage({
+          action: 'pdfTableDetected',
+          table: {
+            type: 'pdf-batch',
+            preview,
+            columns: Array.isArray(rows[0]) ? rows[0] : [],
+            page: page,
+            tableIndex: tableIndex
+          }
+        });
+      });
+      sendResponse({ success:true, added: tables.length });
+    } catch (e) {
+      console.error('Error adding batch tables:', e);
+      sendResponse({ success:false, error:e.message });
+    }
   }
   
   return true; // Keep message channel open
