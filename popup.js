@@ -18,6 +18,7 @@ class PopupController {
       yColumns: document.getElementById('yColumns'),
       scanTables: document.getElementById('scanTables'),
       ocrCapture: document.getElementById('ocrCapture'),
+  imageCapture: document.getElementById('imageCapture'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
       exportSVG: document.getElementById('exportSVG'),
@@ -28,6 +29,7 @@ class PopupController {
   attachEventListeners() {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
   this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
+  this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
     this.elements.generateChart.addEventListener('click', () => this.generateChart());
     this.elements.exportPNG.addEventListener('click', () => this.exportChart('png'));
     this.elements.exportSVG.addEventListener('click', () => this.exportChart('svg'));
@@ -63,23 +65,48 @@ class PopupController {
   
   async startOCRCapture() {
     try {
-  this.showStatus('Starting screen capture for table...', 'info');
+      this.showStatus('Starting table capture...', 'info');
       
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      // Check if we're on a PDF page first to show appropriate message
+      const isPDFPage = tab.url && (tab.url.endsWith('.pdf') || tab.url.includes('.pdf'));
+      
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'startOCR'
       });
       
       if (response.success) {
-  this.showStatus('Select a table area on the page', 'info');
+        if (isPDFPage) {
+          this.showStatus('Select a table area - will use advanced extraction service', 'info');
+        } else {
+          this.showStatus('Select a table area on the page', 'info');
+        }
         // Close popup to allow full screen interaction
         setTimeout(() => window.close(), 1000);
       } else {
-  this.showStatus('Screen capture not available: ' + response.error, 'error');
+        this.showStatus('Table capture not available: ' + response.error, 'error');
       }
     } catch (error) {
       console.error('Error starting OCR:', error);
-  this.showStatus('Error starting screen capture. Please try again.', 'error');
+      this.showStatus('Error starting table capture. Please try again.', 'error');
+    }
+  }
+
+  async startImageCapture() {
+    try {
+      this.showStatus('Starting image capture...', 'info');
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'startImageCapture' });
+      if (response && response.success) {
+        this.showStatus('Select an area – will use image extraction service', 'info');
+        setTimeout(() => window.close(), 800);
+      } else {
+        this.showStatus('Image capture not available: ' + (response?.error || 'Unknown error'), 'error');
+      }
+    } catch (e) {
+      console.error('Error starting image capture:', e);
+      this.showStatus('Error starting image capture.', 'error');
     }
   }
   
@@ -124,7 +151,9 @@ class PopupController {
       'csv-selection': '📊 CSV Selection',
       'markdown': '📝 Markdown Table',
       'markdown-selection': '📝 Markdown Selection',
-  'ocr': '� Captured from Screen'
+      'ocr': '📸 Captured from Screen',
+      'pdf': '📄 Extracted from PDF',
+      'image': '🖼️ Image Extraction'
     };
     
     return typeMap[type] || '📋 Table';
@@ -409,12 +438,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       popupController.showStatus(`Chart exported as ${request.format.toUpperCase()}`, 'success');
       setTimeout(() => popupController.hideStatus(), 3000);
     }
-  } else if (request.action === 'ocrTableDetected') {
-    // Handle OCR table detection
+  } else if (request.action === 'ocrTableDetected' || request.action === 'pdfTableDetected') {
+    // Handle OCR/PDF table detection
     if (popupController) {
       popupController.tables.push(request.table);
       popupController.renderTableList();
-      popupController.showStatus('OCR table extracted successfully!', 'success');
+      const method = request.action === 'pdfTableDetected' ? 'advanced extraction service' : 'screen capture';
+      popupController.showStatus(`Table extracted using ${method} successfully!`, 'success');
     }
   }
 });

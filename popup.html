@@ -9,8 +9,8 @@
 <body>
   <div class="container">
     <header>
-  <h1>📊 TableLens</h1>
-  <p>Find tables on any page and turn them into interactive charts</p>
+      <h1>📊 TableLens</h1>
+      <p>Find tables on any page and turn them into interactive charts</p>
     </header>
     
     <main>
@@ -18,12 +18,13 @@
         <h3>📋 Detected Tables</h3>
         <div class="table-actions">
           <button id="scanTables" class="btn btn-secondary">🔄 Scan for Tables</button>
-          <button id="ocrCapture" class="btn btn-primary">📷 Capture from Screen</button>
+          <button id="ocrCapture" class="btn btn-primary">🧠 Smart Table Capture</button>
+          <button id="imageCapture" class="btn btn-secondary">🖼️ Image→Table</button>
         </div>
         <div id="tableList" class="table-list">
           <div class="no-tables">
             <p>No tables detected on this page</p>
-            <p class="hint">Try scanning for HTML/CSV tables or use Screenshot Capture to extract tables from images</p>
+            <p class="hint">Try scanning for HTML/CSV tables or use Smart Capture to extract tables from PDFs and images</p>
           </div>
         </div>
       </div>

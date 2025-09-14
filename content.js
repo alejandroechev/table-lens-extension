@@ -329,6 +329,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       sendResponse({ success: false, error: 'OCR functionality not available' });
     }
+  } else if (request.action === 'startImageCapture') {
+    if (window.ocrCapture) {
+      try {
+        window.ocrCapture.imageServiceMode = true; // flag to use image service
+        window.ocrCapture.startCapture();
+        sendResponse({ success: true });
+      } catch (e) {
+        sendResponse({ success: false, error: e.message });
+      }
+    } else {
+      sendResponse({ success: false, error: 'Capture functionality not available' });
+    }
+  } else if (request.action === 'pdfTableDetected') {
+    // Handle PDF table detection notification
+    sendResponse({ success: true });
   }
   
   return true; // Keep message channel open
