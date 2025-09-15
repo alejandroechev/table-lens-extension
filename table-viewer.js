@@ -131,6 +131,7 @@ class TableViewer {
       dataTable: document.getElementById('dataTable'),
       dataTableHead: document.getElementById('dataTableHead'),
       dataTableBody: document.getElementById('dataTableBody'),
+      dataControls: document.querySelector('.data-controls'),
       newChartBtn: document.getElementById('newChartBtn'),
       // Data controls
       filterColumn: document.getElementById('filterColumn'),
@@ -149,13 +150,8 @@ class TableViewer {
     this.elements.newChartBtn.addEventListener('click', () => this.createNewChart());
     this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     
-    // Data controls
-    this.elements.filterValue.addEventListener('input', () => this.applyFilter());
-    this.elements.filterColumn.addEventListener('change', () => this.applyFilter());
-    this.elements.clearFilter.addEventListener('click', () => this.clearFilter());
-    this.elements.resetSort.addEventListener('click', () => this.resetSort());
-    this.elements.exportCSV.addEventListener('click', () => this.exportData('csv'));
-    this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    // Note: Individual filter event listeners are now attached in attachFilterEventListeners()
+    // which is called from setupDataControls()
     
     // Handle tab clicks with event delegation
     this.elements.tabBar.addEventListener('click', (e) => {
@@ -756,51 +752,606 @@ class TableViewer {
     
     // Calculate and display initial stats
     this.calculateAllStats();
+    
+    // Add filter buttons to headers after table is rendered
+    setTimeout(() => this.addHeaderFilterButtons(), 100);
   }
   
   setupDataControls() {
-    if (!this.tableData || this.tableData.length === 0) return;
+    const controlsHTML = `
+      <div class="data-actions">
+        <div class="filter-actions">
+          <button id="clearAllFilters" class="btn btn-secondary btn-sm">Clear All Filters</button>
+          <button id="resetSort" class="btn btn-secondary btn-sm">Reset Sort</button>
+        </div>
+        <div class="export-actions">
+          <button id="exportCSV" class="btn btn-primary btn-sm">Export CSV</button>
+          <button id="exportTSV" class="btn btn-primary btn-sm">Export TSV</button>
+        </div>
+      </div>
+    `;
     
-    const headers = this.tableData[0];
+    this.elements.dataControls.innerHTML = controlsHTML;
+
+    // Reattach event listeners for new elements
+    this.attachFilterEventListeners();
+  }
+
+  /**
+   * Add filter buttons to table headers
+   */
+  addHeaderFilterButtons() {
+    console.log('🔧 addHeaderFilterButtons called');
+    console.log('🔧 filteredData:', this.filteredData?.length || 'undefined');
     
-    // Populate filter column dropdown
-    this.elements.filterColumn.innerHTML = '<option value="">All columns</option>';
-    headers.forEach((header, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = header;
-      this.elements.filterColumn.appendChild(option);
+    if (!this.filteredData || this.filteredData.length < 2) {
+      console.log('❌ No filteredData or insufficient rows');
+      return;
+    }
+    
+    const tableHeaders = this.elements.dataTable.querySelectorAll('th');
+    const headers = this.filteredData[0];
+    
+    console.log('🔧 Found table headers:', tableHeaders.length);
+    console.log('🔧 Data headers:', headers);
+    
+    tableHeaders.forEach((th, index) => {
+      if (index < headers.length) {
+        // Remove existing filter button if any
+        const existingBtn = th.querySelector('.filter-btn');
+        if (existingBtn) {
+          console.log(`🔧 Removing existing filter button for column ${index}`);
+          existingBtn.remove();
+        }
+        
+        const columnType = this.columnTypes[index] || 'categorical';
+        const typeInfo = this.getColumnTypeInfo(columnType);
+        
+        const filterBtn = document.createElement('button');
+        filterBtn.className = 'filter-btn';
+        filterBtn.innerHTML = '▼';
+        filterBtn.title = `Filter ${headers[index]} (${typeInfo.description})`;
+        filterBtn.setAttribute('data-column', index);
+        
+        console.log(`🔧 Creating filter button for column ${index}: "${headers[index]}"`);
+        
+        // Position button at the end of header text
+        th.style.position = 'relative';
+        th.appendChild(filterBtn);
+        
+        // Add click handler
+        filterBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log(`🔧 Filter button clicked for column ${index}`);
+          this.showFilterPopup(index, filterBtn, headers[index], columnType);
+        });
+        
+        console.log(`✅ Filter button added to column ${index}`);
+      }
+    });
+    
+    console.log('🔧 addHeaderFilterButtons completed');
+  }
+
+  /**
+   * Show filter popup for a specific column
+   */
+  showFilterPopup(columnIndex, triggerButton, header, columnType) {
+    // Close any existing popup
+    this.closeFilterPopup();
+    
+    const popup = document.createElement('div');
+    popup.className = 'filter-popup';
+    popup.setAttribute('data-column', columnIndex);
+    
+    const typeInfo = this.getColumnTypeInfo(columnType);
+    const filterContent = this.createColumnFilter(header, columnIndex, columnType);
+    
+    popup.innerHTML = `
+      <div class="filter-popup-header">
+        <span>${typeInfo.icon} ${header}</span>
+        <button class="filter-popup-close">×</button>
+      </div>
+      <div class="filter-popup-content">
+        ${filterContent.innerHTML}
+      </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Position popup relative to button
+    this.positionFilterPopup(popup, triggerButton);
+    
+    // Add event listeners
+    popup.querySelector('.filter-popup-close').addEventListener('click', () => this.closeFilterPopup());
+    
+    // Re-attach filter event listeners for the popup content
+    this.attachPopupFilterListeners(popup, columnIndex);
+    
+    // Store reference for closing
+    this.activeFilterPopup = popup;
+    
+    // Mark button as active
+    triggerButton.classList.add('active');
+  }
+
+  /**
+   * Position filter popup relative to trigger button
+   */
+  positionFilterPopup(popup, triggerButton) {
+    const rect = triggerButton.getBoundingClientRect();
+    const popupHeight = 300; // Estimated height
+    const popupWidth = 280;
+    
+    let top = rect.bottom + 5;
+    let left = rect.left;
+    
+    // Check if popup would go below viewport
+    if (top + popupHeight > window.innerHeight) {
+      top = rect.top - popupHeight - 5;
+    }
+    
+    // Check if popup would go beyond right edge
+    if (left + popupWidth > window.innerWidth) {
+      left = window.innerWidth - popupWidth - 10;
+    }
+    
+    // Ensure popup doesn't go beyond left edge
+    if (left < 10) {
+      left = 10;
+    }
+    
+    popup.style.position = 'fixed';
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
+    popup.style.zIndex = '1000';
+  }
+
+  /**
+   * Close active filter popup
+   */
+  closeFilterPopup() {
+    if (this.activeFilterPopup) {
+      // Remove active state from button
+      const columnIndex = this.activeFilterPopup.getAttribute('data-column');
+      const filterBtn = document.querySelector(`.filter-btn[data-column="${columnIndex}"]`);
+      if (filterBtn) filterBtn.classList.remove('active');
+      
+      this.activeFilterPopup.remove();
+      this.activeFilterPopup = null;
+    }
+  }
+
+  /**
+   * Attach event listeners to popup filter controls
+   */
+  attachPopupFilterListeners(popup, columnIndex) {
+    // Numeric filters
+    popup.querySelectorAll('.filter-min, .filter-max').forEach(input => {
+      input.addEventListener('input', () => {
+        this.applyColumnFilters();
+        this.updateFilterButtonState(columnIndex);
+      });
+    });
+    
+    // Date filters
+    popup.querySelectorAll('.filter-date-from, .filter-date-to').forEach(input => {
+      input.addEventListener('change', () => {
+        this.applyColumnFilters();
+        this.updateFilterButtonState(columnIndex);
+      });
+    });
+    
+    // Categorical filters
+    popup.querySelectorAll('.filter-select').forEach(select => {
+      select.addEventListener('change', () => {
+        this.applyColumnFilters();
+        this.updateFilterButtonState(columnIndex);
+      });
+    });
+    
+    popup.querySelectorAll('.filter-text').forEach(input => {
+      input.addEventListener('input', () => {
+        this.applyColumnFilters();
+        this.updateFilterButtonState(columnIndex);
+      });
+    });
+    
+    // Clear filter button
+    const clearBtn = popup.querySelector('.filter-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        this.clearColumnFilter(columnIndex);
+        this.updateFilterButtonState(columnIndex);
+      });
+    }
+  }
+
+  /**
+   * Update filter button visual state based on active filters
+   */
+  updateFilterButtonState(columnIndex) {
+    const filterBtn = document.querySelector(`.filter-btn[data-column="${columnIndex}"]`);
+    if (!filterBtn) return;
+    
+    const hasActiveFilter = this.hasActiveFilter(columnIndex);
+    
+    if (hasActiveFilter) {
+      filterBtn.classList.add('filtered');
+      filterBtn.innerHTML = '▼';
+    } else {
+      filterBtn.classList.remove('filtered');
+      filterBtn.innerHTML = '▼';
+    }
+  }
+
+  /**
+   * Check if a column has active filters
+   */
+  hasActiveFilter(columnIndex) {
+    const popup = this.activeFilterPopup;
+    if (!popup || popup.getAttribute('data-column') != columnIndex) {
+      // Check if there are any stored filter values for this column
+      // This is a simplified check - in a full implementation you'd store filter state
+      return false;
+    }
+    
+    // Check current popup for active filters
+    const inputs = popup.querySelectorAll('input, select');
+    for (const input of inputs) {
+      if (input.type === 'text' || input.type === 'number' || input.type === 'date') {
+        if (input.value.trim()) return true;
+      } else if (input.type === 'select-multiple' && input.selectedOptions.length > 0) {
+        const hasNonEmptySelection = Array.from(input.selectedOptions)
+          .some(option => option.value !== '');
+        if (hasNonEmptySelection) return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Get unique values from a column for categorical filtering
+   */
+  getUniqueColumnValues(columnIndex) {
+    if (!this.originalData || this.originalData.length < 2) return [];
+    
+    const rows = this.originalData.slice(1); // Skip header
+    const values = new Set();
+    
+    rows.forEach(row => {
+      const value = row[columnIndex];
+      if (value != null && String(value).trim() !== '') {
+        values.add(String(value).trim());
+      }
+    });
+    
+    return Array.from(values).sort();
+  }
+
+  /**
+   * Create filter controls for a specific column based on its type
+   */
+  createColumnFilter(header, columnIndex, columnType) {
+    const typeInfo = this.getColumnTypeInfo(columnType);
+    
+    const filterGroup = document.createElement('div');
+    filterGroup.className = 'column-filter-content';
+    filterGroup.setAttribute('data-column', columnIndex);
+    
+    let filterHTML = '';
+    
+    switch (columnType) {
+      case 'numeric':
+      case 'money':
+      case 'percentage':
+        filterHTML = `
+          <div class="filter-header">
+            <label>${typeInfo.icon} ${header}</label>
+            <small>Numeric range filtering</small>
+          </div>
+          <div class="numeric-filter">
+            <input type="number" class="form-control filter-min" placeholder="Min" data-column="${columnIndex}" data-type="min">
+            <span class="filter-separator">to</span>
+            <input type="number" class="form-control filter-max" placeholder="Max" data-column="${columnIndex}" data-type="max">
+            <button class="btn btn-link filter-clear" data-column="${columnIndex}">Clear</button>
+          </div>
+        `;
+        break;
+        
+      case 'date':
+        filterHTML = `
+          <div class="filter-header">
+            <label>${typeInfo.icon} ${header}</label>
+            <small>Date range filtering</small>
+          </div>
+          <div class="date-filter">
+            <input type="date" class="form-control filter-date-from" data-column="${columnIndex}" data-type="from">
+            <span class="filter-separator">to</span>
+            <input type="date" class="form-control filter-date-to" data-column="${columnIndex}" data-type="to">
+            <button class="btn btn-link filter-clear" data-column="${columnIndex}">Clear</button>
+          </div>
+        `;
+        break;
+        
+      case 'categorical':
+      default:
+        // For categorical data, create a dropdown with unique values
+        const uniqueValues = this.getUniqueColumnValues(columnIndex);
+        const options = uniqueValues.slice(0, 20).map(value => 
+          `<option value="${value}">${value}</option>`
+        ).join('');
+        
+        filterHTML = `
+          <div class="filter-header">
+            <label>${typeInfo.icon} ${header}</label>
+            <small>Select specific values</small>
+          </div>
+          <div class="categorical-filter">
+            <select class="form-control filter-select" data-column="${columnIndex}" multiple>
+              <option value="">All values</option>
+              ${options}
+            </select>
+            <input type="text" class="form-control filter-text" placeholder="Or contains text..." data-column="${columnIndex}">
+            <button class="btn btn-link filter-clear" data-column="${columnIndex}">Clear</button>
+          </div>
+        `;
+        break;
+    }
+    
+    filterGroup.innerHTML = filterHTML;
+    return filterGroup;
+  }
+
+  /**
+   * Attach event listeners to the new filter controls
+   */
+  attachFilterEventListeners() {
+    // Clear all filters
+    const clearAllBtn = document.getElementById('clearAllFilters');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => this.clearAllFilters());
+    }
+    
+    // Reset sort
+    const resetSortBtn = document.getElementById('resetSort');
+    if (resetSortBtn) {
+      resetSortBtn.addEventListener('click', () => this.resetSort());
+    }
+    
+    // Export buttons
+    const exportCSV = document.getElementById('exportCSV');
+    const exportTSV = document.getElementById('exportTSV');
+    if (exportCSV) exportCSV.addEventListener('click', () => this.exportData('csv'));
+    if (exportTSV) exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    
+    // Close popup when clicking outside
+    document.addEventListener('click', (e) => {
+      if (this.activeFilterPopup && !this.activeFilterPopup.contains(e.target) && !e.target.classList.contains('filter-btn')) {
+        this.closeFilterPopup();
+      }
+    });
+    
+    // Close popup on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.activeFilterPopup) {
+        this.closeFilterPopup();
+      }
     });
   }
+
+  /**
+   * Clear a specific column filter
+   */
+  clearColumnFilter(columnIndex) {
+    const popup = this.activeFilterPopup;
+    if (popup && popup.getAttribute('data-column') == columnIndex) {
+      // Clear all input values in the active popup
+      popup.querySelectorAll('input').forEach(input => input.value = '');
+      popup.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+    }
+    
+    this.applyColumnFilters();
+  }
+
+  /**
+   * Clear all column filters
+   */
+  clearAllFilters() {
+    // Clear active popup if any
+    if (this.activeFilterPopup) {
+      this.activeFilterPopup.querySelectorAll('input').forEach(input => input.value = '');
+      this.activeFilterPopup.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+    }
+    
+    // Reset filter button states
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filtered'));
+    
+    this.applyColumnFilters();
+  }
+
+  /**
+   * Apply all active column filters to the data
+   */
+  applyColumnFilters() {
+    if (!this.originalData || this.originalData.length < 2) return;
+    
+    let filteredData = [this.originalData[0]]; // Keep header
+    const dataRows = this.originalData.slice(1);
+    
+    const filteredRows = dataRows.filter(row => {
+      return this.checkAllColumnFilters(row);
+    });
+    
+    filteredData = filteredData.concat(filteredRows);
+    this.filteredData = filteredData;
+    
+    // Re-render with filtered data
+    this.renderDataTable();
+    this.calculateAllStats();
+  }
+
+  /**
+   * Check if a row passes all column filters
+   */
+  checkAllColumnFilters(row) {
+    // For now, only check the active popup filter
+    // In a full implementation, you'd store filter states and check all columns
+    if (!this.activeFilterPopup) return true;
+    
+    const columnIndex = parseInt(this.activeFilterPopup.getAttribute('data-column'));
+    const cellValue = row[columnIndex];
+    
+    return this.checkColumnFilter(this.activeFilterPopup, cellValue, columnIndex);
+  }
+
+  /**
+   * Check if a cell value passes a specific column filter
+   */
+  checkColumnFilter(popup, cellValue, columnIndex) {
+    const columnType = this.columnTypes[columnIndex];
+    
+    switch (columnType) {
+      case 'numeric':
+      case 'money':
+      case 'percentage':
+        return this.checkNumericFilter(filterGroup, cellValue);
+        
+      case 'date':
+        return this.checkDateFilter(filterGroup, cellValue);
+        
+      case 'categorical':
+      default:
+        return this.checkCategoricalFilter(filterGroup, cellValue);
+    }
+  }
+
+  /**
+   * Check numeric range filters
+   */
+  checkNumericFilter(filterGroup, cellValue) {
+    const minInput = filterGroup.querySelector('.filter-min');
+    const maxInput = filterGroup.querySelector('.filter-max');
+    
+    if (!minInput || !maxInput) return true;
+    
+    const minValue = minInput.value ? parseFloat(minInput.value) : null;
+    const maxValue = maxInput.value ? parseFloat(maxInput.value) : null;
+    
+    if (minValue === null && maxValue === null) return true;
+    
+    // Parse numeric value from cell
+    const numericValue = this.parseNumericValue(cellValue);
+    if (numericValue === null) return true; // Skip non-numeric values
+    
+    if (minValue !== null && numericValue < minValue) return false;
+    if (maxValue !== null && numericValue > maxValue) return false;
+    
+    return true;
+  }
+
+  /**
+   * Check date range filters
+   */
+  checkDateFilter(filterGroup, cellValue) {
+    const fromInput = filterGroup.querySelector('.filter-date-from');
+    const toInput = filterGroup.querySelector('.filter-date-to');
+    
+    if (!fromInput || !toInput) return true;
+    
+    const fromDate = fromInput.value ? new Date(fromInput.value) : null;
+    const toDate = toInput.value ? new Date(toInput.value) : null;
+    
+    if (!fromDate && !toDate) return true;
+    
+    // Try to parse the cell value as a date
+    const cellDate = this.parseDateValue(cellValue);
+    if (!cellDate) return true; // Skip non-date values
+    
+    if (fromDate && cellDate < fromDate) return false;
+    if (toDate && cellDate > toDate) return false;
+    
+    return true;
+  }
+
+  /**
+   * Check categorical filters (select and text)
+   */
+  checkCategoricalFilter(filterGroup, cellValue) {
+    const selectInput = filterGroup.querySelector('.filter-select');
+    const textInput = filterGroup.querySelector('.filter-text');
+    
+    const cellText = String(cellValue || '').trim().toLowerCase();
+    
+    // Check select filter
+    if (selectInput && selectInput.selectedOptions.length > 0) {
+      const selectedValues = Array.from(selectInput.selectedOptions)
+        .map(option => option.value.toLowerCase())
+        .filter(value => value !== '');
+      
+      if (selectedValues.length > 0 && !selectedValues.includes(cellText)) {
+        return false;
+      }
+    }
+    
+    // Check text filter
+    if (textInput && textInput.value.trim()) {
+      const searchText = textInput.value.trim().toLowerCase();
+      if (!cellText.includes(searchText)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Parse a numeric value from text (handles money, percentages, etc.)
+   */
+  parseNumericValue(value) {
+    if (value == null) return null;
+    
+    const text = String(value).trim();
+    if (!text) return null;
+    
+    // Remove common non-numeric characters
+    const cleaned = text.replace(/[$€£¥%,\s]/g, '').replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  /**
+   * Parse a date value from text
+   */
+  parseDateValue(value) {
+    if (value == null) return null;
+    
+    const text = String(value).trim();
+    if (!text) return null;
+    
+    const parsed = new Date(text);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
   
-  applyFilter() {
+  /**
+   * Apply all active column filters
+   */
+  applyColumnFilters() {
     if (!this.originalData) return;
     
-    const filterColumn = this.elements.filterColumn.value;
-    const filterValue = this.elements.filterValue.value.toLowerCase().trim();
+    const headers = this.originalData[0];
+    const rows = this.originalData.slice(1);
     
-    if (!filterValue) {
-      this.filteredData = [...this.originalData];
-    } else {
-      const headers = this.originalData[0];
-      const rows = this.originalData.slice(1);
-      
-      const filteredRows = rows.filter(row => {
-        if (filterColumn === '') {
-          // Search all columns
-          return row.some(cell => 
-            cell && cell.toString().toLowerCase().includes(filterValue)
-          );
-        } else {
-          // Search specific column
-          const columnIndex = parseInt(filterColumn);
-          const cell = row[columnIndex];
-          return cell && cell.toString().toLowerCase().includes(filterValue);
-        }
+    // Filter rows based on all active column filters
+    const filteredRows = rows.filter(row => {
+      return headers.every((header, columnIndex) => {
+        return this.rowPassesColumnFilter(row, columnIndex);
       });
-      
-      this.filteredData = [headers, ...filteredRows];
-    }
+    });
+    
+    this.filteredData = [headers, ...filteredRows];
     
     // Reapply current sort if any
     if (this.currentSort.column !== -1 && this.currentSort.direction !== 'none') {
@@ -810,11 +1361,158 @@ class TableViewer {
     }
   }
   
-  clearFilter() {
-    this.elements.filterColumn.value = '';
-    this.elements.filterValue.value = '';
+  /**
+   * Check if a row passes the filter for a specific column
+   */
+  rowPassesColumnFilter(row, columnIndex) {
+    const columnType = this.columnTypes[columnIndex] || 'categorical';
+    const cellValue = row[columnIndex];
+    
+    if (cellValue == null) return true; // Allow null/undefined values
+    
+    const cellText = String(cellValue).trim();
+    if (cellText === '') return true; // Allow empty values
+    
+    switch (columnType) {
+      case 'numeric':
+      case 'money':
+      case 'percentage':
+        return this.checkNumericFilter(cellValue, columnIndex);
+        
+      case 'date':
+        return this.checkDateFilter(cellValue, columnIndex);
+        
+      case 'categorical':
+      default:
+        return this.checkCategoricalFilter(cellValue, columnIndex);
+    }
+  }
+  
+  /**
+   * Check numeric range filter
+   */
+  checkNumericFilter(cellValue, columnIndex) {
+    const minInput = document.querySelector(`.filter-min[data-column="${columnIndex}"]`);
+    const maxInput = document.querySelector(`.filter-max[data-column="${columnIndex}"]`);
+    
+    if (!minInput || !maxInput) return true;
+    
+    const minValue = minInput.value ? parseFloat(minInput.value) : null;
+    const maxValue = maxInput.value ? parseFloat(maxInput.value) : null;
+    
+    if (minValue === null && maxValue === null) return true;
+    
+    const numericValue = this.parseNumericValue(cellValue, columnIndex);
+    
+    if (minValue !== null && numericValue < minValue) return false;
+    if (maxValue !== null && numericValue > maxValue) return false;
+    
+    return true;
+  }
+  
+  /**
+   * Check date range filter
+   */
+  checkDateFilter(cellValue, columnIndex) {
+    const fromInput = document.querySelector(`.filter-date-from[data-column="${columnIndex}"]`);
+    const toInput = document.querySelector(`.filter-date-to[data-column="${columnIndex}"]`);
+    
+    if (!fromInput || !toInput) return true;
+    
+    const fromDate = fromInput.value ? new Date(fromInput.value) : null;
+    const toDate = toInput.value ? new Date(toInput.value) : null;
+    
+    if (!fromDate && !toDate) return true;
+    
+    // Try to parse the cell value as a date
+    let cellDate;
+    try {
+      // Handle various date formats
+      const cellStr = String(cellValue).trim();
+      if (cellStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+        // DD/MM/YYYY format
+        const [day, month, year] = cellStr.split('/');
+        cellDate = new Date(year, month - 1, day);
+      } else {
+        cellDate = new Date(cellStr);
+      }
+      
+      if (isNaN(cellDate.getTime())) return true; // Invalid date, allow through
+    } catch {
+      return true; // Error parsing, allow through
+    }
+    
+    if (fromDate && cellDate < fromDate) return false;
+    if (toDate && cellDate > toDate) return false;
+    
+    return true;
+  }
+  
+  /**
+   * Check categorical filter (dropdown selection or text search)
+   */
+  checkCategoricalFilter(cellValue, columnIndex) {
+    const selectInput = document.querySelector(`.filter-select[data-column="${columnIndex}"]`);
+    const textInput = document.querySelector(`.filter-text[data-column="${columnIndex}"]`);
+    
+    if (!selectInput || !textInput) return true;
+    
+    const selectedValues = Array.from(selectInput.selectedOptions).map(opt => opt.value).filter(v => v !== '');
+    const searchText = textInput.value.toLowerCase().trim();
+    
+    // If no filters are active, allow through
+    if (selectedValues.length === 0 && searchText === '') return true;
+    
+    const cellText = String(cellValue).trim();
+    
+    // Check dropdown selection
+    if (selectedValues.length > 0) {
+      if (!selectedValues.includes(cellText)) return false;
+    }
+    
+    // Check text search
+    if (searchText !== '') {
+      if (!cellText.toLowerCase().includes(searchText)) return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Clear all column filters
+   */
+  clearAllFilters() {
+    // Clear all filter inputs
+    document.querySelectorAll('.filter-min, .filter-max, .filter-date-from, .filter-date-to, .filter-text').forEach(input => {
+      input.value = '';
+    });
+    
+    document.querySelectorAll('.filter-select').forEach(select => {
+      select.selectedIndex = 0; // Reset to first option
+      Array.from(select.options).forEach(option => option.selected = false);
+    });
+    
+    // Reset filtered data and re-render
     this.filteredData = [...this.originalData];
     this.renderDataTable();
+  }
+  
+  /**
+   * Clear filter for a specific column
+   */
+  clearColumnFilter(columnIndex) {
+    // Clear all filter inputs for this column
+    document.querySelectorAll(`[data-column="${columnIndex}"]`).forEach(input => {
+      if (input.type === 'number' || input.type === 'date' || input.type === 'text') {
+        input.value = '';
+      } else if (input.tagName === 'SELECT') {
+        input.selectedIndex = 0;
+        Array.from(input.options).forEach(option => option.selected = false);
+      }
+    });
+    
+    // Reapply filters
+    this.applyColumnFilters();
   }
 
   updateColumnStat(columnIndex, statFunction) {

@@ -5,3 +5,4 @@ ToDo:
 - Clean tables: remove empty rows/columns ✅
 - Per column filtering
 - Create new columns with formula (simple)
+- Create chart button as tab

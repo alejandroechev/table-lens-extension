@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Debug Excel-Style Filters</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .debug-section { 
+      margin: 20px 0; 
+      padding: 15px; 
+      border: 1px solid #ddd; 
+      background: #f9f9f9; 
+    }
+    .debug-info { 
+      background: #e7f3ff; 
+      padding: 10px; 
+      margin: 10px 0;
+      border-left: 4px solid #2196F3;
+    }
+    button { padding: 8px 16px; margin: 5px; }
+    .highlight { background-color: yellow; }
+  </style>
+</head>
+<body>
+  <h1>Excel-Style Filter Debug Test</h1>
+  
+  <div class="debug-section">
+    <h3>Debug Information</h3>
+    <div class="debug-info">
+      <strong>Test Steps:</strong>
+      <ol>
+        <li>Open the table viewer with test data</li>
+        <li>Check if filter buttons (▼) appear in table headers</li>
+        <li>Click on filter buttons to see if popups appear</li>
+        <li>Check browser console for any errors</li>
+      </ol>
+    </div>
+    <div id="debugOutput"></div>
+  </div>
+
+  <div class="debug-section">
+    <h3>Test Actions</h3>
+    <button onclick="openTableViewer()">🔍 Open Table Viewer</button>
+    <button onclick="checkTableViewer()">🔧 Debug Table Viewer</button>
+    <button onclick="sendTestData()">📊 Send Test Data</button>
+  </div>
+
+  <script>
+    const testTableData = [
+      ["Product", "Q1 Sales", "Q2 Sales", "Q3 Sales", "Q4 Sales", "Total"],
+      ["Smartphones", "150000", "180000", "220000", "250000", "800000"],
+      ["Laptops", "120000", "135000", "165000", "190000", "610000"],
+      ["Tablets", "95000", "110000", "135000", "155000", "495000"],
+      ["Smart Watches", "75000", "85000", "95000", "110000", "365000"],
+      ["Headphones", "60000", "70000", "80000", "95000", "305000"]
+    ];
+
+    let tableViewerWindow = null;
+
+    function log(message) {
+      const output = document.getElementById('debugOutput');
+      const p = document.createElement('p');
+      p.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+      output.appendChild(p);
+      console.log(message);
+    }
+
+    function openTableViewer() {
+      log('Opening table viewer...');
+      tableViewerWindow = window.open(
+        'table-viewer.html', 
+        'tableViewer-debug',
+        'width=1200,height=800,scrollbars=yes,resizable=yes'
+      );
+      
+      if (tableViewerWindow) {
+        log('✅ Table viewer window opened');
+        // Send data after a delay
+        setTimeout(() => {
+          sendTestData();
+        }, 1500);
+      } else {
+        log('❌ Failed to open table viewer window');
+      }
+    }
+
+    function sendTestData() {
+      if (!tableViewerWindow) {
+        log('❌ No table viewer window found');
+        return;
+      }
+
+      const tableData = {
+        type: 'TABLE_DATA',
+        tableData: testTableData,
+        tableInfo: {
+          title: 'Debug Filter Test',
+          source: 'Excel-style Filter Debug',
+          type: 'html',
+          index: 0
+        }
+      };
+
+      log('📤 Sending test data to table viewer...');
+      tableViewerWindow.postMessage(tableData, '*');
+      
+      // Wait and then debug
+      setTimeout(() => {
+        checkTableViewer();
+      }, 2000);
+    }
+
+    function checkTableViewer() {
+      if (!tableViewerWindow) {
+        log('❌ No table viewer window found');
+        return;
+      }
+
+      try {
+        // Check if we can access the window
+        const doc = tableViewerWindow.document;
+        
+        // Check for table headers
+        const headers = doc.querySelectorAll('th');
+        log(`📋 Found ${headers.length} table headers`);
+        
+        // Check for filter buttons
+        const filterButtons = doc.querySelectorAll('.filter-btn');
+        log(`🔽 Found ${filterButtons.length} filter buttons`);
+        
+        // Check for data-controls
+        const dataControls = doc.querySelector('.data-controls');
+        log(`🎛️ Data controls element: ${dataControls ? 'Found' : 'Missing'}`);
+        
+        // Check for any JavaScript errors
+        const errors = tableViewerWindow.console || {};
+        log('🔍 Check browser console for any JavaScript errors');
+        
+        // Try to trigger addHeaderFilterButtons manually
+        if (tableViewerWindow.tableViewer) {
+          log('🔧 Attempting to manually trigger addHeaderFilterButtons...');
+          tableViewerWindow.tableViewer.addHeaderFilterButtons();
+          
+          // Check again after manual trigger
+          setTimeout(() => {
+            const filterButtonsAfter = doc.querySelectorAll('.filter-btn');
+            log(`🔽 Filter buttons after manual trigger: ${filterButtonsAfter.length}`);
+            
+            if (filterButtonsAfter.length > 0) {
+              log('✅ Filter buttons are now visible!');
+              filterButtonsAfter.forEach((btn, i) => {
+                btn.style.background = 'red';
+                btn.style.color = 'white';
+                log(`🎯 Filter button ${i}: "${btn.textContent}" in column ${btn.getAttribute('data-column')}`);
+              });
+            } else {
+              log('❌ Still no filter buttons found');
+            }
+          }, 500);
+        } else {
+          log('❌ tableViewer instance not found in window');
+        }
+        
+      } catch (error) {
+        log(`❌ Error accessing table viewer: ${error.message}`);
+      }
+    }
+
+    // Listen for messages from table viewer
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'REQUEST_TABLE_DATA') {
+        log('📥 Table viewer requesting data');
+        sendTestData();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,26 @@
 # TableLens Extension - Copilot Instructions
 
-First rule to follow: After making relevant changes to the application#### Recent Development Progress (September 2025)
+First rule to follow: After making relevant changes to the application
+
+#### Recent Development Progress (September 2025)
+
+#### Per-Column Filtering System
+- **Excel-Style Popup Filters**: Replaced traditional inline filters with Excel-style popup dialogs
+  - **Header Filter Buttons**: Small dropdown arrows (▼) positioned at the right of each column header
+  - **Popup Positioning**: Smart positioning that adjusts based on viewport boundaries
+  - **Type-Aware Controls**: Each popup shows appropriate filter controls based on detected column data type
+    - **Numeric/Money/Percentage**: Min/max range inputs with numeric validation
+    - **Date**: Date range picker with from/to inputs  
+    - **Categorical**: Multi-select dropdown with text search capability
+  - **Space-Efficient Design**: Filters only appear when needed, saving precious table space
+  - **Interactive Features**: 
+    - Click outside or press Escape to close popup
+    - Real-time filtering as values are modified
+    - Clear individual filter or global "Clear All Filters" button
+    - Visual indicators show which columns have active filters
+  - **Smart Value Detection**: Automatic extraction of unique values for categorical dropdowns (limited to 20 most common)
+  - **Comprehensive Filter Logic**: Supports range filtering, text matching, date ranges, and multi-value selection
+  - **Graceful Data Handling**: Null-safe parsing with locale-aware numeric and date interpretation
 
 #### Emp### Test Suite Summary (Node-Based Utilities)
 
