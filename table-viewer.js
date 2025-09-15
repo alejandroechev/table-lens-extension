@@ -131,44 +131,237 @@ class TableViewer {
     const rows = this.tableData.slice(1);
     
     this.columnTypes = headers.map((header, colIndex) => {
-      // Check header name for numeric keywords
+      // Check header name for specific type keywords
       const headerName = header.toLowerCase();
-      const numericKeywords = ['count', 'total', 'sum', 'avg', 'average', 'number', 'amount', 'value', 'price', 'cost', 'score', 'rate', 'percent', 'quantity', 'size', 'weight', 'height', 'width', 'length'];
+      
+      // Money/Currency detection
+      const moneyKeywords = [
+        'price','cost','amount','salary','wage','revenue','budget','expense','payment','fee','bill','total','subtotal','tax','discount','refund','balance','debt','income','profit','loss',
+        // Spanish / intl synonyms
+        'monto','importe','pago','cargo','valor','precio'
+      ];
+      const hasMoneyKeyword = moneyKeywords.some(keyword => headerName.includes(keyword));
+      
+      // Percentage detection
+      const percentKeywords = ['percent', 'percentage', 'rate', 'ratio', 'proportion', 'share', 'growth', 'change', 'increase', 'decrease', 'margin', 'roi', 'apy', 'apr', 'tax rate', 'interest'];
+      const hasPercentKeyword = percentKeywords.some(keyword => headerName.includes(keyword)) || headerName.includes('%');
+      
+      // Date detection
+      const dateKeywords = [
+        'date','time','created','updated','modified','birth','start','end','deadline','due','expiry','timestamp','when','day','month','year',
+        // Spanish
+        'fecha','creado','actualizado'
+      ];
+      const hasDateKeyword = dateKeywords.some(keyword => headerName.includes(keyword));
+      
+      // Numeric detection
+      const numericKeywords = ['count', 'sum', 'avg', 'average', 'number', 'value', 'score', 'quantity', 'size', 'weight', 'height', 'width', 'length', 'volume', 'area', 'distance', 'speed', 'temperature'];
       const hasNumericKeyword = numericKeywords.some(keyword => headerName.includes(keyword));
       
-      if (hasNumericKeyword || /\d/.test(headerName) || headerName.includes('%')) {
-        return 'numeric';
-      }
-      
-      // Analyze actual data values
+      // Analyze actual data values for better detection
       const sampleSize = Math.min(rows.length, 20); // Sample first 20 rows
+      let moneyCount = 0;
+      let percentCount = 0;
+      let dateCount = 0;
       let numericCount = 0;
       
       for (let i = 0; i < sampleSize; i++) {
-        const value = rows[i][colIndex];
-        if (value != null && value !== '') {
-          const numValue = parseFloat(String(value).replace(/[$,%]/g, ''));
-          if (!isNaN(numValue)) {
-            numericCount++;
+        const raw = rows[i][colIndex];
+        const value = String(raw == null ? '' : raw).trim();
+        if (value === '') continue;
+        
+        // Money pattern detection (extended for locale formats: thousand separators '.', space, comma decimals, currency code suffix/prefix)
+        // Examples to match: "$ 113.100", "$3.408", "1.234,56 €", "EUR 1 234,56", "CLP 12.345", "12.345 CLP"
+        const moneyPatterns = [
+          /^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?\s*[+-]?[\d\.\s,]+\d(?:[,\.]\d{2})?\s*[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?$/, // generic with symbol
+          /^[+-]?[\d\.\s]+(?:,\d{2})?\s*(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)$/i,
+          /^(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)\s+[+-]?[\d\.\s]+(?:,\d{2})?$/i
+        ];
+        if (moneyPatterns.some(r => r.test(value))) {
+          moneyCount++;
+        }
+        
+        // Percentage pattern detection
+        else if (/^\d+\.?\d*\s*%$/.test(value) || 
+                 (hasPercentKeyword && /^\d+\.?\d*$/.test(value) && parseFloat(value) <= 100)) {
+          percentCount++;
+        }
+        
+        // Date pattern detection
+        else {
+          const datePatterns = [
+            /^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/ ,          // 12/09/2025 or 12-09-25
+            /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/ ,            // 2025-09-12
+            /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i, // Sep 12 2025
+            /^\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$/i,  // 12 Sep 2025
+            /^\d{1,2}-[A-Za-z]{3}-\d{4}$/ ,                  // 12-Sep-2025
+            /^\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}$/i  // 12 de septiembre de 2025 (basic Spanish)
+          ];
+          if (datePatterns.some(r => r.test(value)) || !isNaN(Date.parse(value))) {
+          dateCount++;
+            continue;
+          }
+          // General numeric detection (strip currency symbols, spaces)
+          const cleaned = value.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
+          // Replace thousand separators and normalize decimal
+          const normalized = cleaned.match(/,\d{2}$/) ? cleaned.replace(/\./g,'').replace(',','.') : cleaned.replace(/,/g,'');
+          if (!isNaN(parseFloat(normalized))) {
+            // If it had a currency symbol but patterns failed, still treat as money
+            if (/^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/.test(value)) moneyCount++; else numericCount++;
           }
         }
       }
       
-      // If more than 70% of sampled values are numeric, consider it numeric
-      return (numericCount / sampleSize) > 0.7 ? 'numeric' : 'categorical';
+      const totalValues = sampleSize;
+      const threshold = 0.7; // 70% threshold for type detection
+      
+      // Priority-based type assignment
+      if (moneyCount / totalValues > threshold || hasMoneyKeyword) {
+        return 'money';
+      } else if (percentCount / totalValues > threshold || hasPercentKeyword) {
+        return 'percentage';
+      } else if (dateCount / totalValues > threshold || hasDateKeyword) {
+        return 'date';
+      } else if (numericCount / totalValues > threshold || hasNumericKeyword || /\d/.test(headerName)) {
+        return 'numeric';
+      } else {
+        return 'categorical';
+      }
     });
   }
   
   initializeColumnStats() {
-    this.columnStats = this.columnTypes.map(type => 
-      type === 'numeric' ? 'count' : 'count'
-    );
+    this.columnStats = this.columnTypes.map(type => {
+      switch (type) {
+        case 'money':
+        case 'numeric':
+          return 'count';
+        case 'percentage':
+          return 'avg';
+        case 'date':
+          return 'count';
+        default:
+          return 'count';
+      }
+    });
   }
   
-  resetSort() {
-    this.currentSort = { column: -1, direction: 'none' };
-    this.filteredData = [...this.originalData];
-    this.applyFilter(); // Reapply any active filters
+  getColumnTypeInfo(type) {
+    const typeMap = {
+      'categorical': { icon: '📝', label: '', description: 'Categorical data (text, categories)' },
+      'numeric': { icon: '🔢', label: '', description: 'Numeric data (numbers, quantities)' },
+      'money': { icon: '💰', label: '', description: 'Monetary values (currency, prices)' },
+      'percentage': { icon: '📊', label: '', description: 'Percentage values (rates, ratios)' },
+      'date': { icon: '📅', label: '', description: 'Date and time values' }
+    };
+    return typeMap[type] || typeMap['categorical'];
+  }
+  
+  getStatsSelectHTML(columnType, index) {
+    const baseOptions = '<option value="count">Count</option><option value="unique">Unique</option><option value="mode">Mode</option>';
+    const numericOptions = '<option value="sum">Sum</option><option value="avg">Average</option><option value="min">Min</option><option value="max">Max</option><option value="std">Std Dev</option>';
+    const dateOptions = '<option value="earliest">Earliest</option><option value="latest">Latest</option><option value="range">Range</option>';
+    
+    let options = baseOptions;
+    
+    if (columnType === 'numeric' || columnType === 'money') {
+      options = baseOptions + numericOptions;
+    } else if (columnType === 'percentage') {
+      options = baseOptions + numericOptions;
+    } else if (columnType === 'date') {
+      options = baseOptions + dateOptions;
+    }
+    
+    return `
+      <select class="stat-select" data-column="${index}">
+        ${options}
+      </select>
+      <div id="stat-result-${index}"></div>
+    `;
+  }
+  
+  showColumnTypeEditor(columnIndex, columnName, currentType) {
+    const types = [
+      { value: 'categorical', label: 'Categorical 📝', desc: 'Text, categories, labels' },
+      { value: 'numeric', label: 'Numeric 🔢', desc: 'Numbers, quantities, measurements' },
+      { value: 'money', label: 'Money 💰', desc: 'Currency, prices, financial values' },
+      { value: 'percentage', label: 'Percentage 📊', desc: 'Rates, ratios, percentages' },
+      { value: 'date', label: 'Date 📅', desc: 'Dates, times, timestamps' }
+    ];
+    
+    const modal = document.createElement('div');
+    modal.className = 'type-editor-modal';
+    modal.innerHTML = `
+      <div class="type-editor-content" role="dialog" aria-modal="true">
+        <h3>Column Type for "${columnName}"</h3>
+        <div class="type-options">
+          ${types.map(type => `
+            <label class="type-option ${type.value === currentType ? 'selected' : ''}" data-type="${type.value}">
+              <input type="radio" name="columnType" value="${type.value}" ${type.value === currentType ? 'checked' : ''}>
+              <div class="type-info">
+                <div class="type-label">${type.label}</div>
+                <div class="type-desc">${type.desc}</div>
+              </div>
+            </label>
+          `).join('')}
+        </div>
+        <div class="type-editor-actions">
+          <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn btn-primary" data-action="apply">Apply</button>
+        </div>
+      </div>`;
+    
+    document.body.appendChild(modal);
+    
+    // Add click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+
+    // Highlight selection when clicking label area
+    modal.querySelectorAll('.type-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        modal.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        const input = opt.querySelector('input');
+        if (input) input.checked = true;
+      });
+    });
+
+    // Button handlers
+    const cancelBtn = modal.querySelector('[data-action="cancel"]');
+    const applyBtn = modal.querySelector('[data-action="apply"]');
+    cancelBtn.addEventListener('click', () => modal.remove());
+    applyBtn.addEventListener('click', () => this.applyColumnTypeChange(columnIndex, modal));
+  }
+  
+  applyColumnTypeChange(columnIndex, modal) {
+    const selectedType = modal.querySelector('input[name="columnType"]:checked')?.value;
+    if (selectedType && selectedType !== this.columnTypes[columnIndex]) {
+      this.columnTypes[columnIndex] = selectedType;
+      
+      // Reset column stats to appropriate default
+      switch (selectedType) {
+        case 'money':
+        case 'numeric':
+          this.columnStats[columnIndex] = 'sum';
+          break;
+        case 'percentage':
+          this.columnStats[columnIndex] = 'avg';
+          break;
+        case 'date':
+          this.columnStats[columnIndex] = 'count';
+          break;
+        default:
+          this.columnStats[columnIndex] = 'count';
+      }
+      
+      // Re-render the table with new types
+      this.renderDataTable();
+    }
+    modal.remove();
   }
   
   renderDataTable() {
@@ -184,21 +377,34 @@ class TableViewer {
       const th = document.createElement('th');
       const columnType = this.columnTypes[index] || 'categorical';
       
+      // Get appropriate icon and label for column type
+      const typeInfo = this.getColumnTypeInfo(columnType);
+      
       th.innerHTML = `
-        ${header}
-        <span class="category-indicator category-${columnType}">${columnType === 'numeric' ? 'NUM' : 'CAT'}</span>
-      `;
+        <div class="column-header">
+          <span class="column-name">${header}</span>
+          <div class="column-type-container">
+            <span class="category-indicator category-${columnType}" title="${typeInfo.description}">${typeInfo.icon}</span>
+            <button class="type-edit-btn" data-column="${index}" title="Change column type">✎️</button>
+          </div>
+        </div>`;
       th.className = `sortable ${columnType}`;
       th.setAttribute('data-column', index);
-      th.title = `${columnType.charAt(0).toUpperCase() + columnType.slice(1)} column - Click to sort`;
+      th.title = `${typeInfo.description} - Click to sort`;
       
       // Add current sort indicator
       if (this.currentSort.column === index) {
         th.classList.add(`sort-${this.currentSort.direction}`);
       }
       
-      // Add click listener for sorting
-      th.addEventListener('click', () => this.sortTable(index));
+      // Add click listener for sorting (only on column name, not edit button)
+      th.querySelector('.column-name').addEventListener('click', () => this.sortTable(index));
+      
+      // Add click listener for type editing
+      th.querySelector('.type-edit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.showColumnTypeEditor(index, header, columnType);
+      });
       
       headerRow.appendChild(th);
     });
@@ -211,34 +417,10 @@ class TableViewer {
       const td = document.createElement('td');
       const columnType = this.columnTypes[index] || 'categorical';
       
-      if (columnType === 'numeric') {
-        td.innerHTML = `
-          <select class="stat-select" data-column="${index}">
-            <option value="count">Count</option>
-            <option value="sum">Sum</option>
-            <option value="avg">Average</option>
-            <option value="min">Min</option>
-            <option value="max">Max</option>
-            <option value="std">Std Dev</option>
-          </select>
-          <div id="stat-result-${index}"></div>
-        `;
-        const select = td.querySelector('.stat-select');
-        select.value = this.columnStats[index] || 'count';
-        select.addEventListener('change', (e) => this.updateColumnStat(index, e.target.value));
-      } else {
-        td.innerHTML = `
-          <select class="stat-select" data-column="${index}">
-            <option value="count">Count</option>
-            <option value="unique">Unique</option>
-            <option value="mode">Mode</option>
-          </select>
-          <div id="stat-result-${index}"></div>
-        `;
-        const select = td.querySelector('.stat-select');
-        select.value = this.columnStats[index] || 'count';
-        select.addEventListener('change', (e) => this.updateColumnStat(index, e.target.value));
-      }
+      td.innerHTML = this.getStatsSelectHTML(columnType, index);
+      const select = td.querySelector('.stat-select');
+      select.value = this.columnStats[index] || 'count';
+      select.addEventListener('change', (e) => this.updateColumnStat(index, e.target.value));
       
       statsRow.appendChild(td);
     });
@@ -341,32 +523,88 @@ class TableViewer {
     let result = 0;
     
     try {
-      if (columnType === 'numeric') {
-        const numericValues = values.map(v => parseFloat(String(v).replace(/[$,%]/g, ''))).filter(v => !isNaN(v));
+      if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
+        const numericValues = values.map(v => {
+          const cleaned = String(v).replace(/[$,%\u00A3\u20AC\u00A5\u20B9]/g, '');
+          return parseFloat(cleaned);
+        }).filter(v => !isNaN(v));
         
         switch (statFunction) {
           case 'count':
             result = numericValues.length;
             break;
           case 'sum':
-            result = numericValues.reduce((a, b) => a + b, 0).toLocaleString();
+            result = numericValues.reduce((a, b) => a + b, 0);
+            if (columnType === 'money') result = result.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            else if (columnType === 'percentage') result = result.toFixed(2) + '%';
+            else result = result.toLocaleString();
             break;
           case 'avg':
-            result = numericValues.length > 0 ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length).toFixed(2) : 0;
+            const avg = numericValues.length > 0 ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length) : 0;
+            if (columnType === 'money') result = avg.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            else if (columnType === 'percentage') result = avg.toFixed(2) + '%';
+            else result = avg.toFixed(2);
             break;
           case 'min':
-            result = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+            const min = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+            if (columnType === 'money') result = min.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            else if (columnType === 'percentage') result = min.toFixed(2) + '%';
+            else result = min;
             break;
           case 'max':
-            result = numericValues.length > 0 ? Math.max(...numericValues) : 0;
+            const max = numericValues.length > 0 ? Math.max(...numericValues) : 0;
+            if (columnType === 'money') result = max.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            else if (columnType === 'percentage') result = max.toFixed(2) + '%';
+            else result = max;
             break;
           case 'std':
             if (numericValues.length > 1) {
               const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
               const variance = numericValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numericValues.length;
-              result = Math.sqrt(variance).toFixed(2);
+              const std = Math.sqrt(variance);
+              if (columnType === 'money') result = std.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+              else if (columnType === 'percentage') result = std.toFixed(2) + '%';
+              else result = std.toFixed(2);
             } else {
               result = 0;
+            }
+            break;
+        }
+      } else if (columnType === 'date') {
+        const dateValues = values.map(v => new Date(v)).filter(d => !isNaN(d.getTime()));
+        
+        switch (statFunction) {
+          case 'count':
+            result = dateValues.length;
+            break;
+          case 'unique':
+            result = new Set(values).size;
+            break;
+          case 'mode':
+            const frequency = {};
+            values.forEach(val => {
+              frequency[val] = (frequency[val] || 0) + 1;
+            });
+            const maxCount = Math.max(...Object.values(frequency));
+            const modes = Object.keys(frequency).filter(key => frequency[key] === maxCount);
+            result = modes[0] || 'N/A';
+            if (modes.length > 1) result += ` (+${modes.length - 1})`;
+            break;
+          case 'earliest':
+            result = dateValues.length > 0 ? new Date(Math.min(...dateValues)).toLocaleDateString() : 'N/A';
+            break;
+          case 'latest':
+            result = dateValues.length > 0 ? new Date(Math.max(...dateValues)).toLocaleDateString() : 'N/A';
+            break;
+          case 'range':
+            if (dateValues.length > 1) {
+              const earliest = new Date(Math.min(...dateValues));
+              const latest = new Date(Math.max(...dateValues));
+              const diffTime = Math.abs(latest - earliest);
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              result = `${diffDays} days`;
+            } else {
+              result = 'N/A';
             }
             break;
         }
@@ -387,7 +625,7 @@ class TableViewer {
             const maxCount = Math.max(...Object.values(frequency));
             const modes = Object.keys(frequency).filter(key => frequency[key] === maxCount);
             result = modes[0] || 'N/A';
-            if (modes.length > 1) result += ` (+${modes.length - 1} more)`;
+            if (modes.length > 1) result += ` (+${modes.length - 1})`;
             break;
         }
       }
@@ -638,7 +876,14 @@ class TableViewer {
   }
   
   isNumericColumn(columnIndex) {
-    return this.columnTypes && this.columnTypes[columnIndex] === 'numeric';
+    const columnType = this.columnTypes && this.columnTypes[columnIndex];
+    return columnType === 'numeric' || columnType === 'money' || columnType === 'percentage';
+  }
+
+  resetSort() {
+    this.currentSort = { column: -1, direction: 'none' };
+    this.filteredData = [...this.originalData];
+    this.applyFilter(); // Reapply any active filters
   }
   
   generateChart(chartId) {
