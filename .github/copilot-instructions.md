@@ -2,6 +2,8 @@
 
 First rule to follow: After making relevant changes to the application, update this file.
 
+Second rule to follow: Always add tests and run-tests after making a change.
+
 ## Current State and Design
 
 ### User-Facing Features
@@ -136,6 +138,7 @@ The extension normalizes different table response formats:
   - Manual type override with emoji indicators
   - Spanish keyword support for international data
   - Chilean peso format support ("$ 113.100")
+  - Locale-aware numeric & money parsing with auto-detected thousand (., comma, space) and decimal (., ,) separators; user-adjustable per column
 
 #### Error Resolution
 - **Chart Generation Fixes**: Resolved JavaScript errors in dynamic UI

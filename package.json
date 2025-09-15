@@ -1,0 +1,9 @@
+{
+  "name": "table-lens-extension",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Table extraction & analysis Chrome/Edge extension",
+  "scripts": {
+    "test": "node tests/run-tests.js"
+  }
+}

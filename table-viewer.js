@@ -9,6 +9,7 @@ class TableViewer {
     this.columnStats = []; // Selected stat function per column
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
+  this.numericFormatMap = {}; // columnIndex -> { thousand: ',', decimal: '.' }
     
     // Define chart type requirements
     this.chartTypeDefinitions = {
@@ -236,7 +237,7 @@ class TableViewer {
     const headers = this.tableData[0];
     const rows = this.tableData.slice(1);
     
-    this.columnTypes = headers.map((header, colIndex) => {
+  this.columnTypes = headers.map((header, colIndex) => {
       // Check header name for specific type keywords
       const headerName = header.toLowerCase();
       
@@ -244,7 +245,7 @@ class TableViewer {
       const moneyKeywords = [
         'price','cost','amount','salary','wage','revenue','budget','expense','payment','fee','bill','total','subtotal','tax','discount','refund','balance','debt','income','profit','loss',
         // Spanish / intl synonyms
-        'monto','importe','pago','cargo','valor','precio'
+        'monto','importe','pago','cargo','cargos','valor','precio','abono','saldo','deposito','retiro'
       ];
       const hasMoneyKeyword = moneyKeywords.some(keyword => headerName.includes(keyword));
       
@@ -265,11 +266,12 @@ class TableViewer {
       const hasNumericKeyword = numericKeywords.some(keyword => headerName.includes(keyword));
       
       // Analyze actual data values for better detection
-      const sampleSize = Math.min(rows.length, 20); // Sample first 20 rows
+  const sampleSize = Math.min(rows.length, 30); // Sample first 30 rows
       let moneyCount = 0;
       let percentCount = 0;
       let dateCount = 0;
       let numericCount = 0;
+  const numericSamples = [];
       
       for (let i = 0; i < sampleSize; i++) {
         const raw = rows[i][colIndex];
@@ -285,6 +287,8 @@ class TableViewer {
         ];
         if (moneyPatterns.some(r => r.test(value))) {
           moneyCount++;
+          // Capture numeric portion for format inference
+          numericSamples.push(value);
         }
         
         // Percentage pattern detection
@@ -309,7 +313,10 @@ class TableViewer {
           }
           // General numeric detection (strip currency symbols, spaces)
           const cleaned = value.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
-          // Replace thousand separators and normalize decimal
+          if (/^[+-]?[0-9][0-9.,]*$/.test(cleaned)) {
+            numericSamples.push(value);
+          }
+          // Replace thousand separators and normalize decimal (fallback heuristic)
           const normalized = cleaned.match(/,\d{2}$/) ? cleaned.replace(/\./g,'').replace(',','.') : cleaned.replace(/,/g,'');
           if (!isNaN(parseFloat(normalized))) {
             // If it had a currency symbol but patterns failed, still treat as money
@@ -322,18 +329,55 @@ class TableViewer {
       const threshold = 0.7; // 70% threshold for type detection
       
       // Priority-based type assignment
+      let inferredType = 'categorical';
       if (moneyCount / totalValues > threshold || hasMoneyKeyword) {
-        return 'money';
+        inferredType = 'money';
       } else if (percentCount / totalValues > threshold || hasPercentKeyword) {
-        return 'percentage';
+        inferredType = 'percentage';
       } else if (dateCount / totalValues > threshold || hasDateKeyword) {
-        return 'date';
+        inferredType = 'date';
       } else if (numericCount / totalValues > threshold || hasNumericKeyword || /\d/.test(headerName)) {
-        return 'numeric';
-      } else {
-        return 'categorical';
+        inferredType = 'numeric';
       }
+      if (['numeric','money','percentage'].includes(inferredType)) {
+        const fmt = this.inferNumberFormat(numericSamples);
+        this.numericFormatMap[colIndex] = fmt || { thousand: ',', decimal: '.' };
+      }
+      return inferredType;
     });
+  }
+
+  inferNumberFormat(samples) {
+    if (!samples || samples.length === 0) return { thousand: ',', decimal: '.' };
+    let dotDecimal = 0, commaDecimal = 0, spaceThousand = 0, dotThousand = 0, commaThousand = 0;
+    for (const raw of samples.slice(0, 60)) {
+      const v = String(raw).trim();
+      const core = v.replace(/[\s\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'');
+      if (/,\d{2}$/.test(core)) commaDecimal++;
+      if (/\.\d{2}$/.test(core)) dotDecimal++;
+      if (/\d\.\d{3}(?:[.,]|$)/.test(core)) dotThousand++;
+      if (/\d,\d{3}(?:[.,]|$)/.test(core)) commaThousand++;
+      if (/\d\s\d{3}(?:[.,]|$)/.test(core)) spaceThousand++;
+    }
+    let thousand = ',';
+    let decimal = '.';
+    const hasDecimalInfo = (dotDecimal + commaDecimal) > 0;
+    if (hasDecimalInfo) {
+      if (commaDecimal > dotDecimal) decimal = ','; else if (dotDecimal > commaDecimal) decimal = '.';
+      const candidates = [];
+      if (dotThousand) candidates.push({sep:'.', count:dotThousand});
+      if (commaThousand) candidates.push({sep:',', count:commaThousand});
+      if (spaceThousand) candidates.push({sep:' ', count:spaceThousand});
+      candidates.sort((a,b)=>b.count-a.count);
+      if (candidates.length) thousand = candidates[0].sep; else thousand = decimal === '.' ? ',' : '.';
+      if (thousand === decimal) thousand = decimal === '.' ? ',' : '.';
+    } else {
+      // No decimal markers -> infer typical locale pairing
+      if (dotThousand > 0 && commaThousand === 0) { thousand = '.'; decimal = ','; }
+      else if (commaThousand > 0 && dotThousand === 0) { thousand = ','; decimal = '.'; }
+      else if (spaceThousand > 0) { thousand = ' '; decimal = ','; }
+    }
+    return { thousand, decimal };
   }
   
   initializeColumnStats() {
@@ -397,6 +441,7 @@ class TableViewer {
     
     const modal = document.createElement('div');
     modal.className = 'type-editor-modal';
+    const currentFormat = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
     modal.innerHTML = `
       <div class="type-editor-content" role="dialog" aria-modal="true">
         <h3>Column Type for "${columnName}"</h3>
@@ -410,6 +455,30 @@ class TableViewer {
               </div>
             </label>
           `).join('')}
+        </div>
+        <div class="numeric-format" id="numeric-format-section" style="display:none; margin-top:12px;">
+          <h4 style="margin:4px 0 8px; font-size:14px;">Number Format</h4>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <label style="font-size:12px; display:flex; flex-direction:column; gap:4px;">
+              Thousands
+              <select id="thousand-separator" class="form-control" style="padding:4px 6px; font-size:12px;">
+                <option value="," ${currentFormat.thousand===","? 'selected':''}>, (comma)</option>
+                <option value="." ${currentFormat.thousand==="."? 'selected':''}>. (dot)</option>
+                <option value=" " ${currentFormat.thousand===" "? 'selected':''}>(space)</option>
+                <option value="" ${currentFormat.thousand===""? 'selected':''}>None</option>
+              </select>
+            </label>
+            <label style="font-size:12px; display:flex; flex-direction:column; gap:4px;">
+              Decimal
+              <select id="decimal-separator" class="form-control" style="padding:4px 6px; font-size:12px;">
+                <option value="." ${currentFormat.decimal==='.'? 'selected':''}>. (dot)</option>
+                <option value="," ${currentFormat.decimal===','? 'selected':''}>, (comma)</option>
+              </select>
+            </label>
+            <div style="flex:1; font-size:11px; line-height:1.4; color:var(--text-tertiary);">
+              Example: 1${currentFormat.thousand===' ' ? ' ' : currentFormat.thousand}234${currentFormat.decimal}56
+            </div>
+          </div>
         </div>
         <div class="type-editor-actions">
           <button class="btn btn-secondary" data-action="cancel">Cancel</button>
@@ -436,6 +505,17 @@ class TableViewer {
       });
     });
 
+    // Show/hide number format section based on selected type
+    const updateFormatVisibility = () => {
+      const selected = modal.querySelector('input[name="columnType"]:checked')?.value;
+      const section = modal.querySelector('#numeric-format-section');
+      if (section) {
+        section.style.display = (selected === 'numeric' || selected === 'money' || selected === 'percentage') ? 'block' : 'none';
+      }
+    };
+    modal.querySelectorAll('input[name="columnType"]').forEach(r => r.addEventListener('change', updateFormatVisibility));
+    updateFormatVisibility();
+
     // Button handlers
     const cancelBtn = modal.querySelector('[data-action="cancel"]');
     const applyBtn = modal.querySelector('[data-action="apply"]');
@@ -445,26 +525,36 @@ class TableViewer {
   
   applyColumnTypeChange(columnIndex, modal) {
     const selectedType = modal.querySelector('input[name="columnType"]:checked')?.value;
-    if (selectedType && selectedType !== this.columnTypes[columnIndex]) {
-      this.columnTypes[columnIndex] = selectedType;
-      
-      // Reset column stats to appropriate default
-      switch (selectedType) {
-        case 'money':
-        case 'numeric':
-          this.columnStats[columnIndex] = 'sum';
-          break;
-        case 'percentage':
-          this.columnStats[columnIndex] = 'avg';
-          break;
-        case 'date':
-          this.columnStats[columnIndex] = 'count';
-          break;
-        default:
-          this.columnStats[columnIndex] = 'count';
+    if (selectedType) {
+      const typeChanged = selectedType !== this.columnTypes[columnIndex];
+      if (typeChanged) {
+        this.columnTypes[columnIndex] = selectedType;
+        // Reset column stats to appropriate default
+        switch (selectedType) {
+          case 'money':
+          case 'numeric':
+            this.columnStats[columnIndex] = 'sum';
+            break;
+          case 'percentage':
+            this.columnStats[columnIndex] = 'avg';
+            break;
+          case 'date':
+            this.columnStats[columnIndex] = 'count';
+            break;
+          default:
+            this.columnStats[columnIndex] = 'count';
+        }
       }
-      
-      // Re-render the table with new types
+      if (['numeric','money','percentage'].includes(selectedType)) {
+        const thousand = modal.querySelector('#thousand-separator')?.value ?? ',';
+        const decimal = modal.querySelector('#decimal-separator')?.value ?? '.';
+        let safeDecimal = decimal;
+        let safeThousand = thousand;
+        if (safeDecimal === safeThousand && safeDecimal !== '') {
+          safeThousand = safeDecimal === '.' ? ',' : '.';
+        }
+        this.numericFormatMap[columnIndex] = { thousand: safeThousand, decimal: safeDecimal };
+      }
       this.renderDataTable();
     }
     modal.remove();
@@ -634,10 +724,7 @@ class TableViewer {
     
     try {
       if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
-        const numericValues = values.map(v => {
-          const cleaned = String(v).replace(/[$,%\u00A3\u20AC\u00A5\u20B9]/g, '');
-          return parseFloat(cleaned);
-        }).filter(v => !isNaN(v));
+        const numericValues = values.map(v => this.parseNumericValue(v, columnIndex)).filter(v => !isNaN(v));
         
         switch (statFunction) {
           case 'count':
@@ -645,25 +732,25 @@ class TableViewer {
             break;
           case 'sum':
             result = numericValues.reduce((a, b) => a + b, 0);
-            if (columnType === 'money') result = result.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            if (columnType === 'money') result = result.toLocaleString();
             else if (columnType === 'percentage') result = result.toFixed(2) + '%';
             else result = result.toLocaleString();
             break;
           case 'avg':
             const avg = numericValues.length > 0 ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length) : 0;
-            if (columnType === 'money') result = avg.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            if (columnType === 'money') result = avg.toLocaleString();
             else if (columnType === 'percentage') result = avg.toFixed(2) + '%';
             else result = avg.toFixed(2);
             break;
           case 'min':
             const min = numericValues.length > 0 ? Math.min(...numericValues) : 0;
-            if (columnType === 'money') result = min.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            if (columnType === 'money') result = min.toLocaleString();
             else if (columnType === 'percentage') result = min.toFixed(2) + '%';
             else result = min;
             break;
           case 'max':
             const max = numericValues.length > 0 ? Math.max(...numericValues) : 0;
-            if (columnType === 'money') result = max.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            if (columnType === 'money') result = max.toLocaleString();
             else if (columnType === 'percentage') result = max.toFixed(2) + '%';
             else result = max;
             break;
@@ -672,7 +759,7 @@ class TableViewer {
               const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
               const variance = numericValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numericValues.length;
               const std = Math.sqrt(variance);
-              if (columnType === 'money') result = std.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+              if (columnType === 'money') result = std.toLocaleString();
               else if (columnType === 'percentage') result = std.toFixed(2) + '%';
               else result = std.toFixed(2);
             } else {
@@ -790,23 +877,8 @@ class TableViewer {
       let comparison = 0;
       
       if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
-        // Normalize numeric-like values (handle locale thousands/decimals & currency)
-        const parseNum = (v) => {
-          const str = String(v).trim();
-          if (!str) return 0;
-          // Remove currency symbols & spaces
-            let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
-            // If comma used as decimal (pattern 1.234,56)
-            if (/,\d{1,2}$/.test(cleaned) && /\./.test(cleaned)) {
-              cleaned = cleaned.replace(/\./g,'').replace(',','.');
-            } else {
-              cleaned = cleaned.replace(/,/g,'');
-            }
-            const num = parseFloat(cleaned);
-            return isNaN(num) ? 0 : num;
-        };
-        const aNum = parseNum(aVal);
-        const bNum = parseNum(bVal);
+        const aNum = this.parseNumericValue(aVal, columnIndex);
+        const bNum = this.parseNumericValue(bVal, columnIndex);
         comparison = aNum - bNum;
       } else {
         // String comparison
@@ -1274,10 +1346,7 @@ class TableViewer {
     // Extract datasets (Y-axis data)
     const datasets = yColumns.map((yCol, index) => {
       const columnName = headers[yCol] || `Column ${yCol + 1}`;
-      const values = rows.map(row => {
-        const value = row[yCol];
-        return this.parseNumericValue(value);
-      });
+  const values = rows.map(row => this.parseNumericValue(row[yCol], yCol));
       
       return {
         label: columnName,
@@ -1293,16 +1362,24 @@ class TableViewer {
     return { labels, datasets };
   }
   
-  parseNumericValue(value) {
-    if (value === null || value === undefined || value === '') {
-      return 0;
+  parseNumericValue(value, columnIndex) {
+    if (value === null || value === undefined || value === '') return 0;
+    const str = String(value).trim();
+    const fmt = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
+    // Remove currency symbols and %
+    let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'').replace(/%/g,'');
+    // Remove thousand separators only when in thousand position (lookahead 3 digits)
+    if (fmt.thousand) {
+      const ts = fmt.thousand === ' ' ? /\s(?=\d{3}(?:\D|$))/g : new RegExp('(?<=\d)\\' + fmt.thousand + '(?=\d{3}(?:\D|$))','g');
+      cleaned = cleaned.replace(ts,'');
     }
-    
-    // Remove common non-numeric characters
-    const cleaned = String(value).replace(/[$,%]/g, '');
-    const parsed = parseFloat(cleaned);
-    
-    return isNaN(parsed) ? 0 : parsed;
+    if (fmt.decimal && fmt.decimal !== '.') {
+      const decRegex = new RegExp('\\' + fmt.decimal + '(?=\d{1,4}$)');
+      cleaned = cleaned.replace(decRegex, '.');
+    }
+    cleaned = cleaned.replace(/[^0-9+\-.]/g,'');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
   }
   
   generateColors(count, datasetIndex) {
