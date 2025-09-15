@@ -19,6 +19,7 @@ class TableViewer {
     this.elements = {
       headerTitle: document.getElementById('headerTitle'),
       tableInfo: document.getElementById('tableInfo'),
+      themeToggle: document.getElementById('themeToggle'),
       tabBar: document.getElementById('tabBar'),
       dataTable: document.getElementById('dataTable'),
       dataTableHead: document.getElementById('dataTableHead'),
@@ -32,10 +33,14 @@ class TableViewer {
       exportCSV: document.getElementById('exportCSV'),
       exportTSV: document.getElementById('exportTSV')
     };
+    
+    // Initialize theme
+    this.initializeTheme();
   }
   
   attachEventListeners() {
     this.elements.newChartBtn.addEventListener('click', () => this.createNewChart());
+    this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     
     // Data controls
     this.elements.filterValue.addEventListener('input', () => this.applyFilter());
@@ -972,6 +977,31 @@ class TableViewer {
         <image href="${dataUrl}" width="${width}" height="${height}"/>
       </svg>
     `.trim();
+  }
+  
+  // Theme management methods
+  initializeTheme() {
+    const savedTheme = localStorage.getItem('tableLensTheme') || 'light';
+    this.setTheme(savedTheme);
+  }
+  
+  toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    this.setTheme(newTheme);
+  }
+  
+  setTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('tableLensTheme', theme);
+    
+    // Update theme toggle icon
+    if (this.elements.themeToggle) {
+      const icon = this.elements.themeToggle.querySelector('.theme-icon');
+      if (icon) {
+        icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+      }
+    }
   }
 }
 

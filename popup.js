@@ -16,26 +16,29 @@ class PopupController {
     this.elements = {
       tableList: document.getElementById('tableList'),
       tableSearch: document.getElementById('tableSearch'),
+      themeToggle: document.getElementById('themeToggle'),
       chartOptions: document.getElementById('chartOptions'),
       chartType: document.getElementById('chartType'),
       xColumn: document.getElementById('xColumn'),
       yColumns: document.getElementById('yColumns'),
       scanTables: document.getElementById('scanTables'),
       ocrCapture: document.getElementById('ocrCapture'),
-  imageCapture: document.getElementById('imageCapture'),
-    allTables: document.getElementById('allTables'),
+	imageCapture: document.getElementById('imageCapture'),
+	allTables: document.getElementById('allTables'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
       exportSVG: document.getElementById('exportSVG'),
       status: document.getElementById('status')
     };
-  }
-  
-  attachEventListeners() {
+    
+    // Initialize theme
+    this.initializeTheme();
+  }  attachEventListeners() {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
-  this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
-  this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
-  this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
+	this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
+	this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
+	this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
+    this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     if (this.elements.tableSearch) {
       this.elements.tableSearch.addEventListener('input', () => this.renderTableList());
     }
@@ -45,9 +48,7 @@ class PopupController {
     
     this.elements.chartType.addEventListener('change', () => this.updateChartOptions());
     this.elements.xColumn.addEventListener('change', () => this.validateChartInputs());
-  }
-
-  async startAllTablesExtraction() {
+  }  async startAllTablesExtraction() {
     this.showStatus('Detecting content type...', 'info');
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -733,6 +734,31 @@ class PopupController {
   
   hideStatus() {
     this.elements.status.style.display = 'none';
+  }
+  
+  // Theme management methods
+  initializeTheme() {
+    const savedTheme = localStorage.getItem('tableLensTheme') || 'light';
+    this.setTheme(savedTheme);
+  }
+  
+  toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    this.setTheme(newTheme);
+  }
+  
+  setTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('tableLensTheme', theme);
+    
+    // Update theme toggle icon
+    if (this.elements.themeToggle) {
+      const icon = this.elements.themeToggle.querySelector('.theme-icon');
+      if (icon) {
+        icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+      }
+    }
   }
 }
 
