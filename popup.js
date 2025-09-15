@@ -7,6 +7,7 @@ class PopupController {
     this.initializeElements();
     this.attachEventListeners();
     // Removed automatic table scanning - now done via Extract All Tables button
+    this.restoreExistingTables();
   }
   
   initializeElements() {
@@ -154,6 +155,32 @@ class PopupController {
     } catch (error) {
       console.error('Error scanning webpage:', error);
       this.showStatus('Error scanning webpage. Please refresh and try again.', 'error');
+    }
+  }
+
+  async restoreExistingTables() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) return;
+      const resp = await chrome.tabs.sendMessage(tab.id, { action: 'listCurrentTables' });
+      if (!resp || !resp.success || !Array.isArray(resp.tables) || resp.tables.length === 0) return;
+      // Deduplicate by id if popup was reopened rapidly
+      const existingIds = new Set(this.tables.map(t => t.id));
+      let added = 0;
+      resp.tables.forEach(t => {
+        if (existingIds.has(t.id)) return;
+        this.tables.push(t);
+        existingIds.add(t.id);
+        added++;
+      });
+      if (added > 0) {
+        this.renderTableList();
+        this.showStatus(`Restored ${added} table(s) from previous extraction`, 'success');
+        setTimeout(()=>this.hideStatus(), 2000);
+      }
+    } catch (e) {
+      // Silent fail – likely no content script yet
+      console.debug('No existing tables to restore:', e.message);
     }
   }
 

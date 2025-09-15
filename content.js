@@ -402,6 +402,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.error('Error adding batch tables:', e);
       sendResponse({ success:false, error:e.message });
     }
+  } else if (request.action === 'listCurrentTables') {
+    try {
+      const meta = tableDetector.tables.map(t => ({
+        type: t.type,
+        preview: t.preview,
+        id: t.id,
+        columns: Array.isArray(t.data) && Array.isArray(t.data[0]) ? t.data[0] : [],
+        page: t.page,
+        tableIndex: t.tableIndex
+      }));
+      sendResponse({ success:true, tables: meta });
+    } catch (e) {
+      sendResponse({ success:false, error: e.message });
+    }
   }
   
   return true; // Keep message channel open
