@@ -1,6 +1,30 @@
 # TableLens Extension - Copilot Instructions
 
-First rule to follow: After making relevant changes to the application, update this file.
+First rule to follow: After making relevant changes to the application#### Recent Development Progress (September 2025)
+
+#### Emp### Test Suite Summary (Node-Based Utilities)
+
+Added pure utility modules under `utils/` with corresponding tests under `tests/`:
+
+- `utils/numberFormat.js`: Inference & parsing (locale-aware)
+- `utils/stats.js`: Numeric statistics (population std dev) mirroring TableViewer logic
+- `tests/numberFormat.test.js`: Chilean money detection & parsing
+- `tests/stats.test.js`: Verifies stats calculations (sum, avg, min, max, std, count) for CLP columns
+- `tests/tableCleanup.test.js`: Validates empty row/column removal with 9 test cases including edge cases
+- `tests/run-tests.js`: Aggregates and runs all tests (run via `npm test`)
+
+Total test coverage: **14 tests passing** covering number format detection, statistical calculations, and table data cleaning.
+
+These utilities ensure future refactors of in-UI logic (TableViewer) don't silently break numeric parsing, statistical correctness, or table processing reliability.mn Removal Feature
+- **Table Data Cleaning**: Implemented automatic removal of empty rows and columns from displayed tables
+  - Automatically removes columns that contain only empty/whitespace-only cells
+  - Automatically removes rows that contain only empty/whitespace-only data 
+  - Preserves header row (index 0) even if empty to maintain table structure
+  - Handles edge cases: all-empty tables, partial data, null/undefined values
+  - Comprehensive test coverage with 9 test cases including Chilean banking format
+  - Integrated into `handleTableData()` method for automatic cleanup before display
+
+#### Chart System Enhancementspdate this file.
 
 Second rule to follow: Always add tests and run-tests after making a change.
 

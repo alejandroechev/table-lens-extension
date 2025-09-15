@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Table Cleanup Test Page</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        table {
+            border-collapse: collapse;
+            margin: 15px 0;
+            width: 100%;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .empty-cell {
+            background-color: #ffebee;
+            opacity: 0.7;
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 16px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Empty Row/Column Removal Test Page</h1>
+    
+    <div class="instructions">
+        <h3>📋 Test Instructions</h3>
+        <p>This page contains various table formats with empty rows and columns to test the cleanup functionality:</p>
+        <ol>
+            <li>Click the TableLens extension button 📊</li>
+            <li>Click "📑 Extract All Tables"</li>
+            <li>Open any of the detected tables</li>
+            <li>Verify that empty rows and columns have been automatically removed</li>
+            <li>Check that the header row is preserved even if empty</li>
+        </ol>
+        <p><strong>Expected Result:</strong> Tables in the viewer should have empty rows/columns removed while preserving data structure.</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Basic Table with Empty Columns</h3>
+        <p>This table has empty columns that should be removed:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th class="empty-cell">(empty)</th>
+                    <th>Age</th>
+                    <th class="empty-cell">(empty)</th>
+                    <th>City</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Alice</td>
+                    <td class="empty-cell"></td>
+                    <td>25</td>
+                    <td class="empty-cell"></td>
+                    <td>NYC</td>
+                </tr>
+                <tr>
+                    <td>Bob</td>
+                    <td class="empty-cell">   </td>
+                    <td>30</td>
+                    <td class="empty-cell"></td>
+                    <td>LA</td>
+                </tr>
+                <tr>
+                    <td>Charlie</td>
+                    <td class="empty-cell"></td>
+                    <td>35</td>
+                    <td class="empty-cell"></td>
+                    <td>Chicago</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Table with Empty Rows</h3>
+        <p>This table has empty rows that should be removed:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Laptop</td>
+                    <td>$999</td>
+                    <td>15</td>
+                </tr>
+                <tr class="empty-cell">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>Mouse</td>
+                    <td>$25</td>
+                    <td>100</td>
+                </tr>
+                <tr class="empty-cell">
+                    <td>   </td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>Keyboard</td>
+                    <td>$75</td>
+                    <td>50</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Chilean Banking Format</h3>
+        <p>Real-world Chilean banking table with mixed empty columns:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th class="empty-cell">(empty)</th>
+                    <th>Descripción</th>
+                    <th>Cargos</th>
+                    <th class="empty-cell">(empty)</th>
+                    <th>Abono</th>
+                    <th>Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>15/09/2025</td>
+                    <td class="empty-cell"></td>
+                    <td>Transferencia</td>
+                    <td>$ 90.000</td>
+                    <td class="empty-cell"></td>
+                    <td></td>
+                    <td>$ 5.249.195</td>
+                </tr>
+                <tr class="empty-cell">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>10/09/2025</td>
+                    <td class="empty-cell"></td>
+                    <td>Depósito</td>
+                    <td></td>
+                    <td class="empty-cell"></td>
+                    <td>$ 100.000</td>
+                    <td>$ 5.339.195</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: CSV-like Data in Pre Block</h3>
+        <p>CSV format with empty columns (should be detected by extension):</p>
+        <pre>Name,,Age,,City,
+Alice,,25,,NYC,
+Bob,,30,,LA,
+,,,,
+Charlie,,35,,Chicago,</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 5: Markdown Table</h3>
+        <p>Markdown format with empty columns:</p>
+        <pre>| Name | (empty) | Age | (empty) | City |
+|------|---------|-----|---------|------|
+| Alice |        | 25  |         | NYC  |
+|       |        |     |         |      |
+| Bob   |        | 30  |         | LA   |</pre>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 6: Edge Case - Empty Header</h3>
+        <p>Table with empty header (should be preserved):</p>
+        <table>
+            <thead>
+                <tr>
+                    <th class="empty-cell"></th>
+                    <th class="empty-cell"></th>
+                    <th class="empty-cell"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Alice</td>
+                    <td>25</td>
+                    <td>NYC</td>
+                </tr>
+                <tr>
+                    <td>Bob</td>
+                    <td>30</td>
+                    <td>LA</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="instructions">
+        <h3>✅ Expected Cleanup Results</h3>
+        <ul>
+            <li><strong>Test 1:</strong> Should show "Name | Age | City" (3 columns instead of 5)</li>
+            <li><strong>Test 2:</strong> Should show 3 product rows (empty rows removed)</li>
+            <li><strong>Test 3:</strong> Should show "Fecha | Descripción | Cargos | Abono | Saldo" (5 columns instead of 7, empty row removed)</li>
+            <li><strong>Test 4:</strong> CSV should be cleaned to 3 columns</li>
+            <li><strong>Test 5:</strong> Markdown should be cleaned to 3 columns</li>
+            <li><strong>Test 6:</strong> Empty header should be preserved, showing empty header + 2 data rows</li>
+        </ul>
+    </div>
+</body>
+</html>

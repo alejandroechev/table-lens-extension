@@ -197,7 +197,10 @@ class TableViewer {
   }
   
   handleTableData(data) {
-    this.tableData = data.tableData;
+    // Clean empty rows and columns before processing
+    const cleanedData = this.cleanTableData(data.tableData);
+    
+    this.tableData = cleanedData;
     this.tableInfo = data.tableInfo;
     this.originalData = [...this.tableData]; // Store original order
     this.filteredData = [...this.tableData];
@@ -207,6 +210,70 @@ class TableViewer {
     this.updateHeader();
     this.renderDataTable();
     this.setupDataControls();
+  }
+
+  /**
+   * Remove empty rows and columns from table data
+   * @param {Array} tableData - 2D array representing table
+   * @returns {Array} Cleaned table data
+   */
+  cleanTableData(tableData) {
+    if (!tableData || tableData.length === 0) return tableData;
+    
+    // First, identify which columns have any non-empty data
+    const columnHasData = new Array(tableData[0].length).fill(false);
+    
+    // Check all rows to see which columns contain data
+    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+      const row = tableData[rowIndex];
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        const cell = row[colIndex];
+        // Consider a cell non-empty if it contains any non-whitespace text
+        if (cell != null && String(cell).trim() !== '') {
+          columnHasData[colIndex] = true;
+        }
+      }
+    }
+    
+    // Get indices of columns that have data
+    const validColumns = columnHasData.map((hasData, index) => hasData ? index : -1)
+                                      .filter(index => index !== -1);
+    
+    // If all columns are empty, return original data to avoid breaking everything
+    if (validColumns.length === 0) {
+      console.warn('⚠️ All columns appear empty, keeping original table structure');
+      return tableData;
+    }
+    
+    // Filter out empty columns and empty rows
+    const cleanedRows = [];
+    
+    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+      const originalRow = tableData[rowIndex];
+      
+      // Create new row with only non-empty columns
+      const filteredRow = validColumns.map(colIndex => originalRow[colIndex]);
+      
+      // Check if this row has any non-empty data
+      const rowHasData = filteredRow.some(cell => 
+        cell != null && String(cell).trim() !== ''
+      );
+      
+      // Keep the header row (index 0) even if empty, and any row with data
+      if (rowIndex === 0 || rowHasData) {
+        cleanedRows.push(filteredRow);
+      }
+    }
+    
+    // Log cleanup results
+    const removedColumns = tableData[0].length - validColumns.length;
+    const removedRows = tableData.length - cleanedRows.length;
+    
+    if (removedColumns > 0 || removedRows > 0) {
+      console.log(`🧹 Table cleanup: removed ${removedRows} empty rows and ${removedColumns} empty columns`);
+    }
+    
+    return cleanedRows.length > 0 ? cleanedRows : tableData;
   }
   
   updateHeader() {

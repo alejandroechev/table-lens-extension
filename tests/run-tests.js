@@ -6,6 +6,12 @@ try {
 } catch (e) {
   console.error('Failed loading stats tests', e);
 }
+try {
+  const collection3 = require('./tableCleanup.test.js');
+  tests = tests.concat(collection3);
+} catch (e) {
+  console.error('Failed loading table cleanup tests', e);
+}
 
 let passed = 0;
 let failed = 0;
