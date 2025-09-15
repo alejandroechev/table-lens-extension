@@ -1,5 +1,7 @@
 # TableLens Extension - Copilot Instructions
 
+First rule to follow: After making relevant changes to the application, update this file.
+
 ## Current State and Design
 
 ### User-Facing Features
@@ -109,6 +111,37 @@ The extension normalizes different table response formats:
 - Duplicate detection and filtering
 - Header inference for headerless tables
 - Progress indicators for batch operations
+
+### Recent Development Progress (September 2025)
+
+#### Chart System Enhancements
+- **Dynamic Chart UI**: Implemented intelligent chart type definitions with column filtering
+  - 6 chart types: Line, Bar, Horizontal Bar, Pie, Doughnut, Scatter Plot
+  - Each chart type shows only valid columns based on data types
+  - Smart axis validation (multiple vs single selection)
+  - Auto-selection of appropriate defaults
+
+#### Dark Theme Implementation
+- **Comprehensive CSS Variables**: Complete dark/light theme system with localStorage persistence
+- **Chart View Theming**: Full dark mode support for table analysis interface
+  - Chart type/column selection UI properly themed
+  - Empty chart placeholder styled for both themes
+  - Tab close buttons and status messages theme-aware
+  - All form controls and axis configurations responsive to theme
+  - Chart controls panel (`.chart-controls`) and chart container (`.chart-container`) now use theme variables (no hardcoded light backgrounds)
+
+#### Column Type Detection
+- **Enhanced Data Types**: 5 column types with automatic detection
+  - Numeric, categorical, money, percentage, date
+  - Manual type override with emoji indicators
+  - Spanish keyword support for international data
+  - Chilean peso format support ("$ 113.100")
+
+#### Error Resolution
+- **Chart Generation Fixes**: Resolved JavaScript errors in dynamic UI
+  - Fixed null reference errors in `generateChart` method
+  - Proper handling of single vs multiple Y-axis selections
+  - Chart type definitions properly initialized in constructor
 
 ### Code Organization Patterns
 

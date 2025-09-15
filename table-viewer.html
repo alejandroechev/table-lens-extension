@@ -23,6 +23,16 @@
       --table-even: #f9f9f9;
       --table-hover: #f8f9ff;
       --table-even-hover: #f0f0ff;
+      --danger-color: #e74c3c;
+      --success-bg: #d1edff;
+      --success-text: #0c63e4;
+      --success-border: #a7d2ff;
+      --error-bg: #f8d7da;
+      --error-text: #721c24;
+      --error-border: #f5c6cb;
+      --info-bg: #d1ecf1;
+      --info-text: #0c5460;
+      --info-border: #bee5eb;
     }
 
     [data-theme="dark"] {
@@ -43,6 +53,16 @@
       --table-even: #2d3748;
       --table-hover: #4a5568;
       --table-even-hover: #718096;
+      --danger-color: #f56565;
+      --success-bg: rgba(72, 187, 120, 0.2);
+      --success-text: #68d391;
+      --success-border: rgba(72, 187, 120, 0.3);
+      --error-bg: rgba(245, 101, 101, 0.2);
+      --error-text: #fc8181;
+      --error-border: rgba(245, 101, 101, 0.3);
+      --info-bg: rgba(99, 179, 237, 0.2);
+      --info-text: #90cdf4;
+      --info-border: rgba(99, 179, 237, 0.3);
     }
 
     * {
@@ -158,14 +178,14 @@
     .tab .close-btn {
       margin-left: 8px;
       font-size: 16px;
-      color: #999;
+      color: var(--text-tertiary);
       cursor: pointer;
       padding: 2px;
       line-height: 1;
     }
 
     .tab .close-btn:hover {
-      color: #e74c3c;
+      color: var(--danger-color, #e74c3c);
     }
 
     .tab-content {
@@ -252,11 +272,12 @@
 
     /* Chart Tab Styles */
     .chart-controls {
-      background: #f8f9fa;
+      background: var(--bg-tertiary);
       padding: 15px;
       margin-bottom: 15px;
       border-radius: 6px;
-      border: 1px solid #dee2e6;
+      border: 1px solid var(--border-primary);
+      box-shadow: 0 1px 2px var(--shadow-primary);
     }
 
     .form-row {
@@ -275,7 +296,7 @@
       display: block;
       margin-bottom: 5px;
       font-weight: 500;
-      color: #495057;
+      color: var(--text-secondary);
       font-size: 13px;
     }
 
@@ -328,12 +349,21 @@
     .chart-container {
       height: 400px;
       position: relative;
-      background: white;
-      border: 1px solid #dee2e6;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    /* Dark theme refinements */
+    [data-theme="dark"] .chart-controls {
+      box-shadow: 0 1px 3px var(--shadow-secondary) inset;
+    }
+
+    [data-theme="dark"] .chart-container {
+      box-shadow: 0 1px 3px var(--shadow-secondary) inset;
     }
 
     .chart-container canvas {
@@ -370,7 +400,7 @@
     }
 
     .chart-placeholder {
-      color: #6c757d;
+      color: var(--text-tertiary);
       font-style: italic;
       text-align: center;
     }
@@ -411,21 +441,21 @@
     }
 
     .status-success {
-      background: #d1edff;
-      color: #0c63e4;
-      border: 1px solid #a7d2ff;
+      background: var(--success-bg, #d1edff);
+      color: var(--success-text, #0c63e4);
+      border: 1px solid var(--success-border, #a7d2ff);
     }
 
     .status-error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+      background: var(--error-bg, #f8d7da);
+      color: var(--error-text, #721c24);
+      border: 1px solid var(--error-border, #f5c6cb);
     }
 
     .status-info {
-      background: #d1ecf1;
-      color: #0c5460;
-      border: 1px solid #bee5eb;
+      background: var(--info-bg, #d1ecf1);
+      color: var(--info-text, #0c5460);
+      border: 1px solid var(--info-border, #bee5eb);
     }
     
     .btn:disabled {
