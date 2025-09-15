@@ -10,6 +10,112 @@ class TableViewer {
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
     
+    // Define chart type requirements
+    this.chartTypeDefinitions = {
+      'line': {
+        name: '📈 Line Chart',
+        description: 'Shows trends over time or categories',
+        xAxis: { 
+          required: true, 
+          types: ['categorical', 'date', 'numeric'], 
+          label: 'Categories/Time',
+          hint: 'Choose dates, categories, or sequential data'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: true,
+          label: 'Values to Plot',
+          hint: 'Select one or more numeric columns'
+        }
+      },
+      'bar': {
+        name: '📊 Bar Chart',
+        description: 'Compares values across categories',
+        xAxis: { 
+          required: true, 
+          types: ['categorical', 'date'], 
+          label: 'Categories',
+          hint: 'Choose categories or dates'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: true,
+          label: 'Values to Compare',
+          hint: 'Select numeric values to compare'
+        }
+      },
+      'horizontalBar': {
+        name: '📊 Horizontal Bar Chart',
+        description: 'Bar chart with horizontal orientation',
+        xAxis: { 
+          required: true, 
+          types: ['categorical'], 
+          label: 'Categories',
+          hint: 'Choose category labels'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: true,
+          label: 'Values',
+          hint: 'Select numeric values'
+        }
+      },
+      'pie': {
+        name: '🥧 Pie Chart',
+        description: 'Shows proportions of a whole',
+        xAxis: { 
+          required: true, 
+          types: ['categorical'], 
+          label: 'Categories',
+          hint: 'Choose category labels for pie slices'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: false,
+          label: 'Values',
+          hint: 'Select ONE numeric column for slice sizes'
+        }
+      },
+      'doughnut': {
+        name: '🍩 Doughnut Chart',
+        description: 'Pie chart with center hollow',
+        xAxis: { 
+          required: true, 
+          types: ['categorical'], 
+          label: 'Categories',
+          hint: 'Choose category labels for segments'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: false,
+          label: 'Values',
+          hint: 'Select ONE numeric column for segment sizes'
+        }
+      },
+      'scatter': {
+        name: '🔵 Scatter Plot',
+        description: 'Shows correlation between two variables',
+        xAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage', 'date'], 
+          label: 'X Variable',
+          hint: 'Choose numeric or date data for X-axis'
+        },
+        yAxis: { 
+          required: true, 
+          types: ['numeric', 'money', 'percentage'], 
+          multiple: false,
+          label: 'Y Variable',
+          hint: 'Select ONE numeric column for Y-axis'
+        }
+      }
+    };
+    
     this.initializeElements();
     this.attachEventListeners();
     this.loadTableData();
@@ -780,49 +886,37 @@ class TableViewer {
   }
   
   createChartPanelHTML(chartId, chartName) {
-    const headers = this.tableData ? this.tableData[0] : [];
+    if (!this.tableData || this.tableData.length === 0) {
+      return '<div class="chart-placeholder">No data available for charting</div>';
+    }
+
+    const headers = this.tableData[0];
     
     return `
       <div class="status-message" id="${chartId}-status" style="display: none;"></div>
       
       <div class="chart-controls">
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group chart-type-group">
             <label for="${chartId}-type">Chart Type:</label>
             <select id="${chartId}-type" class="form-control">
-              <option value="line">📈 Line Chart</option>
-              <option value="bar">📊 Bar Chart</option>
-              <option value="pie">🥧 Pie Chart</option>
-              <option value="doughnut">🍩 Doughnut Chart</option>
-              <option value="horizontalBar">📊 Horizontal Bar</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="${chartId}-x">X-Axis Column:</label>
-            <select id="${chartId}-x" class="form-control">
-              <option value="">Select column...</option>
-              ${headers.map((header, index) => 
-                `<option value="${index}">${header}</option>`
+              ${Object.entries(this.chartTypeDefinitions).map(([key, def]) => 
+                `<option value="${key}">${def.name}</option>`
               ).join('')}
             </select>
-          </div>
-          
-          <div class="form-group">
-            <button id="${chartId}-generate" class="btn btn-primary" disabled>Generate Chart</button>
+            <div class="chart-description" id="${chartId}-description">
+              ${this.chartTypeDefinitions['line'].description}
+            </div>
           </div>
         </div>
         
-        <div class="form-group">
-          <label>Y-Axis Columns:</label>
-          <div class="checkbox-group" id="${chartId}-y">
-            ${headers.map((header, index) => `
-              <div class="checkbox-item">
-                <input type="checkbox" id="${chartId}-col-${index}" value="${index}">
-                <label for="${chartId}-col-${index}">${header}</label>
-              </div>
-            `).join('')}
-          </div>
+        <div class="chart-axis-controls" id="${chartId}-axis-controls">
+          <!-- Dynamic axis controls will be inserted here -->
+        </div>
+        
+        <div class="form-group chart-actions">
+          <button id="${chartId}-generate" class="btn btn-primary" disabled>Generate Chart</button>
+          <button id="${chartId}-clear" class="btn btn-secondary">Clear Selection</button>
         </div>
       </div>
       
@@ -832,65 +926,251 @@ class TableViewer {
           <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'svg')">SVG</button>
         </div>
         <div class="chart-placeholder">
-          Configure chart options above and click "Generate Chart" to create your visualization.
+          Select a chart type and configure the axes to create your visualization.
         </div>
       </div>
     `;
   }
   
   initializeChartControls(chartId) {
+    const typeSelect = document.getElementById(`${chartId}-type`);
+    const generateBtn = document.getElementById(`${chartId}-generate`);
+    
+    if (!typeSelect || !generateBtn) return;
+
+    // Initialize with default chart type
+    this.updateAxisControls(chartId, typeSelect.value);
+
+    // Chart type change handler
+    typeSelect.addEventListener('change', (e) => {
+      this.updateAxisControls(chartId, e.target.value);
+    });
+
+    // Generate button handler
+    generateBtn.addEventListener('click', () => {
+      this.generateChart(chartId);
+    });
+  }
+  
+  getValidColumnsForAxis(axisRequirements) {
+    if (!this.tableData || !this.columnTypes) return [];
+    
+    const headers = this.tableData[0];
+    return headers.map((header, index) => {
+      const columnType = this.columnTypes[index];
+      const typeIcon = this.getColumnTypeInfo(columnType).icon;
+      
+      return {
+        index,
+        header,
+        type: columnType,
+        icon: typeIcon,
+        valid: axisRequirements.types.includes(columnType)
+      };
+    }).filter(col => col.valid);
+  }
+
+  generateAxisControlsHTML(chartId, chartType) {
+    const chartDef = this.chartTypeDefinitions[chartType];
+    if (!chartDef) return '';
+
+    let html = '';
+    
+    // X-Axis controls
+    if (chartDef.xAxis.required) {
+      const validXCols = this.getValidColumnsForAxis(chartDef.xAxis);
+      
+      html += `
+        <div class="form-group axis-group">
+          <label for="${chartId}-x">${chartDef.xAxis.label}:</label>
+          <select id="${chartId}-x" class="form-control" ${
+            validXCols.length === 0 ? 'disabled' : ''
+          }>
+            <option value="">Select ${chartDef.xAxis.label.toLowerCase()}...</option>
+            ${validXCols.map(col => 
+              `<option value="${col.index}">${col.icon} ${col.header}</option>`
+            ).join('')}
+          </select>
+          <div class="axis-hint">${chartDef.xAxis.hint}</div>
+          ${validXCols.length === 0 ? 
+            `<div class="axis-warning">⚠️ No suitable columns found for X-axis. Need: ${chartDef.xAxis.types.join(', ')}</div>` : 
+            ''
+          }
+        </div>
+      `;
+    }
+    
+    // Y-Axis controls
+    if (chartDef.yAxis.required) {
+      const validYCols = this.getValidColumnsForAxis(chartDef.yAxis);
+      
+      if (chartDef.yAxis.multiple) {
+        // Multiple selection for Y-axis (checkboxes)
+        html += `
+          <div class="form-group axis-group">
+            <label>${chartDef.yAxis.label}:</label>
+            <div class="checkbox-group" id="${chartId}-y">
+              ${validYCols.map(col => `
+                <div class="checkbox-item">
+                  <input type="checkbox" id="${chartId}-col-${col.index}" value="${col.index}">
+                  <label for="${chartId}-col-${col.index}">${col.icon} ${col.header}</label>
+                </div>
+              `).join('')}
+            </div>
+            <div class="axis-hint">${chartDef.yAxis.hint}</div>
+            ${validYCols.length === 0 ? 
+              `<div class="axis-warning">⚠️ No suitable columns found for Y-axis. Need: ${chartDef.yAxis.types.join(', ')}</div>` : 
+              ''
+            }
+          </div>
+        `;
+      } else {
+        // Single selection for Y-axis (dropdown)
+        html += `
+          <div class="form-group axis-group">
+            <label for="${chartId}-y-single">${chartDef.yAxis.label}:</label>
+            <select id="${chartId}-y-single" class="form-control" ${
+              validYCols.length === 0 ? 'disabled' : ''
+            }>
+              <option value="">Select ${chartDef.yAxis.label.toLowerCase()}...</option>
+              ${validYCols.map(col => 
+                `<option value="${col.index}">${col.icon} ${col.header}</option>`
+              ).join('')}
+            </select>
+            <div class="axis-hint">${chartDef.yAxis.hint}</div>
+            ${validYCols.length === 0 ? 
+              `<div class="axis-warning">⚠️ No suitable columns found for Y-axis. Need: ${chartDef.yAxis.types.join(', ')}</div>` : 
+              ''
+            }
+          </div>
+        `;
+      }
+    }
+    
+    return html;
+  }
+
+  updateAxisControls(chartId, chartType) {
+    const axisContainer = document.getElementById(`${chartId}-axis-controls`);
+    const descriptionDiv = document.getElementById(`${chartId}-description`);
+    
+    if (axisContainer) {
+      axisContainer.innerHTML = this.generateAxisControlsHTML(chartId, chartType);
+    }
+    
+    if (descriptionDiv && this.chartTypeDefinitions[chartType]) {
+      descriptionDiv.textContent = this.chartTypeDefinitions[chartType].description;
+    }
+    
+    // Re-attach event listeners for new controls
+    this.attachAxisEventListeners(chartId, chartType);
+  }
+
+  attachAxisEventListeners(chartId, chartType) {
+    const chartDef = this.chartTypeDefinitions[chartType];
+    if (!chartDef) return;
+
+    // Get elements based on chart type
     const elements = {
       type: document.getElementById(`${chartId}-type`),
       xAxis: document.getElementById(`${chartId}-x`),
-      yCheckboxes: document.getElementById(`${chartId}-y`),
+      yAxis: chartDef.yAxis.multiple ? 
+        document.getElementById(`${chartId}-y`) : 
+        document.getElementById(`${chartId}-y-single`),
       generate: document.getElementById(`${chartId}-generate`),
-      container: document.getElementById(`${chartId}-container`),
-      status: document.getElementById(`${chartId}-status`)
+      clear: document.getElementById(`${chartId}-clear`)
     };
-    
+
     // Validation function
     const validateInputs = () => {
-      const hasX = elements.xAxis.value !== '';
-      const hasY = elements.yCheckboxes.querySelectorAll('input:checked').length > 0;
-      elements.generate.disabled = !hasX || !hasY;
-    };
-    
-    // Event listeners
-    elements.xAxis.addEventListener('change', validateInputs);
-    elements.yCheckboxes.addEventListener('change', validateInputs);
-    
-    elements.generate.addEventListener('click', () => {
-      this.generateChart(chartId);
-    });
-    
-    // Auto-select suggestions
-    this.autoSelectChartColumns(chartId);
-  }
-  
-  autoSelectChartColumns(chartId) {
-    if (!this.tableData) return;
-    
-    const headers = this.tableData[0];
-    const xSelect = document.getElementById(`${chartId}-x`);
-    const yCheckboxes = document.getElementById(`${chartId}-y`);
-    
-    // Auto-select first column as X-axis if it looks like labels
-    if (headers.length > 0 && !this.isNumericColumn(0)) {
-      xSelect.value = '0';
-    }
-    
-    // Auto-select numeric columns for Y-axis
-    headers.forEach((header, index) => {
-      if (this.isNumericColumn(index)) {
-        const checkbox = document.getElementById(`${chartId}-col-${index}`);
-        if (checkbox) {
-          checkbox.checked = true;
+      let hasValidConfig = true;
+      
+      // Check X-axis
+      if (chartDef.xAxis.required) {
+        hasValidConfig = hasValidConfig && elements.xAxis && elements.xAxis.value !== '';
+      }
+      
+      // Check Y-axis
+      if (chartDef.yAxis.required) {
+        if (chartDef.yAxis.multiple) {
+          const checkedBoxes = elements.yAxis ? elements.yAxis.querySelectorAll('input:checked') : [];
+          hasValidConfig = hasValidConfig && checkedBoxes.length > 0;
+        } else {
+          hasValidConfig = hasValidConfig && elements.yAxis && elements.yAxis.value !== '';
         }
       }
-    });
+      
+      if (elements.generate) {
+        elements.generate.disabled = !hasValidConfig;
+      }
+    };
+
+    // Attach event listeners
+    if (elements.xAxis) {
+      elements.xAxis.addEventListener('change', validateInputs);
+    }
     
-    // Trigger validation
-    xSelect.dispatchEvent(new Event('change'));
+    if (elements.yAxis) {
+      elements.yAxis.addEventListener('change', validateInputs);
+    }
+    
+    if (elements.clear) {
+      elements.clear.addEventListener('click', () => {
+        if (elements.xAxis) elements.xAxis.value = '';
+        if (elements.yAxis) {
+          if (chartDef.yAxis.multiple) {
+            const checkboxes = elements.yAxis.querySelectorAll('input[type="checkbox"]');
+            if (checkboxes) {
+              checkboxes.forEach(cb => cb.checked = false);
+            }
+          } else {
+            elements.yAxis.value = '';
+          }
+        }
+        validateInputs();
+      });
+    }
+
+    // Auto-select smart defaults
+    this.autoSelectSmartDefaults(chartId, chartType);
+    
+    // Initial validation
+    validateInputs();
+  }
+
+  autoSelectSmartDefaults(chartId, chartType) {
+    const chartDef = this.chartTypeDefinitions[chartType];
+    if (!chartDef) return;
+
+    // Auto-select X-axis if only one valid option or obvious choice
+    if (chartDef.xAxis.required) {
+      const validXCols = this.getValidColumnsForAxis(chartDef.xAxis);
+      const xSelect = document.getElementById(`${chartId}-x`);
+      
+      if (validXCols.length === 1) {
+        // Only one option, select it
+        if (xSelect) xSelect.value = validXCols[0].index;
+      } else if (validXCols.length > 0) {
+        // Find first categorical or date column for categories-based charts
+        const preferredCol = validXCols.find(col => 
+          col.type === 'categorical' || col.type === 'date'
+        );
+        if (preferredCol && xSelect) {
+          xSelect.value = preferredCol.index;
+        }
+      }
+    }
+
+    // Auto-select Y-axis for single-selection charts
+    if (chartDef.yAxis.required && !chartDef.yAxis.multiple) {
+      const validYCols = this.getValidColumnsForAxis(chartDef.yAxis);
+      const ySelect = document.getElementById(`${chartId}-y-single`);
+      
+      if (validYCols.length === 1 && ySelect) {
+        // Only one option, select it
+        ySelect.value = validYCols[0].index;
+      }
+    }
   }
   
   isNumericColumn(columnIndex) {
@@ -910,7 +1190,8 @@ class TableViewer {
     const elements = {
       type: document.getElementById(`${chartId}-type`),
       xAxis: document.getElementById(`${chartId}-x`),
-      yCheckboxes: document.getElementById(`${chartId}-y`),
+      yCheckboxes: document.getElementById(`${chartId}-y`), // For multiple selection
+      ySingle: document.getElementById(`${chartId}-y-single`), // For single selection
       container: document.getElementById(`${chartId}-container`),
       status: document.getElementById(`${chartId}-status`)
     };
@@ -918,9 +1199,33 @@ class TableViewer {
     try {
       // Get configuration
       const chartType = elements.type.value;
+      const chartDef = this.chartTypeDefinitions[chartType];
       const xColumn = parseInt(elements.xAxis.value);
-      const yColumns = Array.from(elements.yCheckboxes.querySelectorAll('input:checked'))
-        .map(cb => parseInt(cb.value));
+      
+      // Handle Y-axis columns based on chart type
+      let yColumns = [];
+      if (chartDef && chartDef.yAxis) {
+        if (chartDef.yAxis.multiple && elements.yCheckboxes) {
+          // Multiple selection (checkboxes) - for line, bar, etc.
+          const checkedInputs = elements.yCheckboxes.querySelectorAll('input:checked');
+          yColumns = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+        } else if (!chartDef.yAxis.multiple && elements.ySingle) {
+          // Single selection (dropdown) - for pie, doughnut, scatter
+          const selectedValue = elements.ySingle.value;
+          if (selectedValue && selectedValue !== '') {
+            yColumns = [parseInt(selectedValue)];
+          }
+        }
+      }
+      
+      // Validate required inputs
+      if (isNaN(xColumn) || xColumn < 0) {
+        throw new Error('Please select a valid X-axis column');
+      }
+      
+      if (yColumns.length === 0) {
+        throw new Error('Please select at least one Y-axis column');
+      }
       
       // Destroy existing chart
       if (this.charts.has(chartId)) {
@@ -1125,7 +1430,7 @@ class TableViewer {
   createChartConfig(chartType, chartData, xColumn, yColumns) {
     const headers = this.tableData[0];
     
-    return {
+    const baseConfig = {
       type: chartType === 'horizontalBar' ? 'bar' : chartType,
       data: chartData,
       options: {
@@ -1148,6 +1453,15 @@ class TableViewer {
         indexAxis: chartType === 'horizontalBar' ? 'y' : 'x'
       }
     };
+    
+    // Special handling for scatter plots
+    if (chartType === 'scatter') {
+      baseConfig.type = 'scatter';
+      baseConfig.options.scales.x.type = 'linear';
+      baseConfig.options.scales.x.position = 'bottom';
+    }
+    
+    return baseConfig;
   }
   
   generateChartTitle(chartType, xColumn, yColumns) {
@@ -1157,11 +1471,16 @@ class TableViewer {
       bar: 'Bar Chart', 
       pie: 'Pie Chart',
       doughnut: 'Doughnut Chart',
-      horizontalBar: 'Horizontal Bar Chart'
+      horizontalBar: 'Horizontal Bar Chart',
+      scatter: 'Scatter Plot'
     };
     
     const xLabel = headers[xColumn] || 'Category';
     const yLabels = yColumns.map(col => headers[col] || `Data ${col + 1}`);
+    
+    if (chartType === 'scatter') {
+      return `${chartTypeNames[chartType]}: ${yLabels[0]} vs ${xLabel}`;
+    }
     
     if (yLabels.length === 1) {
       return `${chartTypeNames[chartType]}: ${yLabels[0]} by ${xLabel}`;
