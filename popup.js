@@ -6,7 +6,7 @@ class PopupController {
     
     this.initializeElements();
     this.attachEventListeners();
-    this.scanForTables();
+    // Removed automatic table scanning - now done via Extract All Tables button
   }
   
   initializeElements() {
@@ -41,13 +41,33 @@ class PopupController {
   }
 
   async startAllTablesExtraction() {
-    this.showStatus('Extracting all tables in PDF...', 'info');
+    this.showStatus('Detecting content type...', 'info');
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      // Ask content script to provide PDF URL (reuse OCR capture util indirectly if possible)
+      
+      // Check if we're on a PDF page
+      const isPDFPage = tab.url && (tab.url.endsWith('.pdf') || tab.url.includes('.pdf'));
+      
+      if (isPDFPage) {
+        // PDF extraction flow
+        await this.extractFromPDF(tab);
+      } else {
+        // Webpage extraction flow
+        await this.extractFromWebpage(tab);
+      }
+    } catch (e) {
+      console.error('Extraction error:', e);
+      this.showStatus('Error during extraction: ' + e.message, 'error');
+    }
+  }
+
+  async extractFromPDF(tab) {
+    this.showStatus('Extracting all tables from PDF...', 'info');
+    try {
+      // Ask content script to provide PDF URL
       const pdfInfo = await chrome.tabs.sendMessage(tab.id, { action: 'getPDFContextInfo' });
       if (!pdfInfo || !pdfInfo.success) {
-        this.showStatus('Not on a PDF page or cannot detect PDF URL.', 'error');
+        this.showStatus('Cannot detect PDF URL. Please refresh the page.', 'error');
         return;
       }
       const resp = await chrome.runtime.sendMessage({
@@ -62,27 +82,25 @@ class PopupController {
           if (!fallback) {
             this.showStatus('Extraction cancelled (pages required).', 'error');
           }
-          return; // flow handled
+          return;
         }
-        this.showStatus('Extraction failed: ' + errMsg, 'error');
+        this.showStatus('PDF extraction failed: ' + errMsg, 'error');
         return;
       }
       const result = resp.data;
-      // Service may return either { tables: [...] } or a raw array
       let rawTables;
       if (Array.isArray(result)) {
-        rawTables = result; // already the array of table wrappers
+        rawTables = result;
       } else if (Array.isArray(result?.tables)) {
         rawTables = result.tables;
       } else {
         rawTables = [];
       }
-      console.log('[Popup Batch] Raw service tables length:', rawTables.length, 'Sample first:', rawTables[0]);
       if (rawTables.length === 0) {
         this.showStatus('No tables found in PDF.', 'error');
         return;
       }
-      // Normalize to a structure expected by content script: each object should expose rows directly.
+      // Normalize and inject tables
       const normalized = rawTables.map(rt => {
         const rows = rt.rows || rt.data || (rt.table && rt.table.rows) || [];
         return {
@@ -92,16 +110,14 @@ class PopupController {
           bbox: rt.bbox || rt.table?.bbox || null
         };
       });
-      console.log('[Popup Batch] Normalized tables preview:', normalized.slice(0,2));
       const addResp = await chrome.tabs.sendMessage(tab.id, { action: 'addBatchExtractedTables', tables: normalized });
       if (!addResp || !addResp.success) {
-        this.showStatus('Failed injecting tables into page context.', 'error');
+        this.showStatus('Failed processing extracted tables.', 'error');
         return;
       }
-      // Merge into popup list directly too using normalized
+      // Add to popup list
       normalized.forEach(t => {
         const preview = this.generatePreviewFromRaw(t.rows || []);
-        console.log('[Popup BatchMerge] Normalized table added:', t);
         this.tables.push({
           type: 'pdf-batch',
           columns: (t.rows && Array.isArray(t.rows[0]) ? t.rows[0] : []),
@@ -111,11 +127,33 @@ class PopupController {
         });
       });
       this.renderTableList();
-      this.showStatus(`Added ${normalized.length} table(s) from PDF`, 'success');
-      setTimeout(()=>this.hideStatus(), 2500);
+      this.showStatus(`Successfully extracted ${normalized.length} table(s) from PDF`, 'success');
+      setTimeout(() => this.hideStatus(), 2500);
     } catch (e) {
-      console.error('Batch extraction error:', e);
-      this.showStatus('Error during batch extraction: ' + e.message, 'error');
+      console.error('PDF extraction error:', e);
+      this.showStatus('Error during PDF extraction: ' + e.message, 'error');
+    }
+  }
+
+  async extractFromWebpage(tab) {
+    this.showStatus('Scanning webpage for tables...', 'info');
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'detectTables'
+      });
+      
+      this.tables = response.tables || [];
+      this.renderTableList();
+      
+      if (this.tables.length === 0) {
+        this.showStatus('No tables found on this webpage', 'error');
+      } else {
+        this.showStatus(`Found ${this.tables.length} table(s) on webpage`, 'success');
+        setTimeout(() => this.hideStatus(), 2000);
+      }
+    } catch (error) {
+      console.error('Error scanning webpage:', error);
+      this.showStatus('Error scanning webpage. Please refresh and try again.', 'error');
     }
   }
 

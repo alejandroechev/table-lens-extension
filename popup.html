@@ -17,15 +17,16 @@
       <div class="section">
         <h3>📋 Detected Tables</h3>
         <div class="table-actions">
-          <button id="scanTables" class="btn btn-secondary">🔄 Scan for Tables</button>
-          <button id="ocrCapture" class="btn btn-primary">🧠 Smart Table Capture</button>
-          <button id="imageCapture" class="btn btn-secondary">🖼️ Image→Table</button>
-          <button id="allTables" class="btn btn-secondary">📑 Extract All Tables</button>
+          <button id="allTables" class="btn btn-primary btn-large">� Extract All Tables</button>
+          <!-- Hidden features - kept for internal use -->
+          <button id="scanTables" class="btn btn-secondary" style="display: none;">🔄 Scan for Tables</button>
+          <button id="ocrCapture" class="btn btn-primary" style="display: none;">🧠 Smart Table Capture</button>
+          <button id="imageCapture" class="btn btn-secondary" style="display: none;">🖼️ Image→Table</button>
         </div>
         <div id="tableList" class="table-list">
           <div class="no-tables">
             <p>No tables detected on this page</p>
-            <p class="hint">Try scanning for HTML/CSV tables or use Smart Capture to extract tables from PDFs and images</p>
+            <p class="hint">Click "Extract All Tables" to automatically detect and extract tables from webpages or PDF documents</p>
           </div>
         </div>
       </div>
