@@ -3,7 +3,10 @@ class TableViewer {
     this.tableData = null;
     this.tableInfo = null;
     this.filteredData = null;
+    this.originalData = null; // Store original order
     this.currentSort = { column: -1, direction: 'none' };
+    this.columnTypes = []; // 'categorical' or 'numeric'
+    this.columnStats = []; // Selected stat function per column
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
     
@@ -25,12 +28,9 @@ class TableViewer {
       filterColumn: document.getElementById('filterColumn'),
       filterValue: document.getElementById('filterValue'),
       clearFilter: document.getElementById('clearFilter'),
+      resetSort: document.getElementById('resetSort'),
       exportCSV: document.getElementById('exportCSV'),
-      exportTSV: document.getElementById('exportTSV'),
-      // Stats
-      totalRows: document.getElementById('totalRows'),
-      visibleRows: document.getElementById('visibleRows'),
-      selectedColumnStats: document.getElementById('selectedColumnStats')
+      exportTSV: document.getElementById('exportTSV')
     };
   }
   
@@ -41,6 +41,7 @@ class TableViewer {
     this.elements.filterValue.addEventListener('input', () => this.applyFilter());
     this.elements.filterColumn.addEventListener('change', () => this.applyFilter());
     this.elements.clearFilter.addEventListener('click', () => this.clearFilter());
+    this.elements.resetSort.addEventListener('click', () => this.resetSort());
     this.elements.exportCSV.addEventListener('click', () => this.exportData('csv'));
     this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
     
@@ -86,12 +87,14 @@ class TableViewer {
   handleTableData(data) {
     this.tableData = data.tableData;
     this.tableInfo = data.tableInfo;
+    this.originalData = [...this.tableData]; // Store original order
     this.filteredData = [...this.tableData];
     
+    this.analyzeColumnTypes();
+    this.initializeColumnStats();
     this.updateHeader();
     this.renderDataTable();
     this.setupDataControls();
-    this.updateStats();
   }
   
   updateHeader() {
@@ -107,9 +110,60 @@ class TableViewer {
       'csv': 'CSV Data',
       'csv-selection': 'CSV Selection',
       'markdown': 'Markdown Table',
-      'markdown-selection': 'Markdown Selection'
+      'markdown-selection': 'Markdown Selection',
+      'ocr': 'Screen Captured',
+      'pdf': 'PDF Extracted',
+      'image': 'Image Extracted',
+      'pdf-batch': 'PDF Table'
     };
     return typeMap[type] || 'Table';
+  }
+
+  analyzeColumnTypes() {
+    if (!this.tableData || this.tableData.length < 2) return;
+    
+    const headers = this.tableData[0];
+    const rows = this.tableData.slice(1);
+    
+    this.columnTypes = headers.map((header, colIndex) => {
+      // Check header name for numeric keywords
+      const headerName = header.toLowerCase();
+      const numericKeywords = ['count', 'total', 'sum', 'avg', 'average', 'number', 'amount', 'value', 'price', 'cost', 'score', 'rate', 'percent', 'quantity', 'size', 'weight', 'height', 'width', 'length'];
+      const hasNumericKeyword = numericKeywords.some(keyword => headerName.includes(keyword));
+      
+      if (hasNumericKeyword || /\d/.test(headerName) || headerName.includes('%')) {
+        return 'numeric';
+      }
+      
+      // Analyze actual data values
+      const sampleSize = Math.min(rows.length, 20); // Sample first 20 rows
+      let numericCount = 0;
+      
+      for (let i = 0; i < sampleSize; i++) {
+        const value = rows[i][colIndex];
+        if (value != null && value !== '') {
+          const numValue = parseFloat(String(value).replace(/[$,%]/g, ''));
+          if (!isNaN(numValue)) {
+            numericCount++;
+          }
+        }
+      }
+      
+      // If more than 70% of sampled values are numeric, consider it numeric
+      return (numericCount / sampleSize) > 0.7 ? 'numeric' : 'categorical';
+    });
+  }
+  
+  initializeColumnStats() {
+    this.columnStats = this.columnTypes.map(type => 
+      type === 'numeric' ? 'count' : 'count'
+    );
+  }
+  
+  resetSort() {
+    this.currentSort = { column: -1, direction: 'none' };
+    this.filteredData = [...this.originalData];
+    this.applyFilter(); // Reapply any active filters
   }
   
   renderDataTable() {
@@ -118,15 +172,20 @@ class TableViewer {
     const headers = this.filteredData[0];
     const rows = this.filteredData.slice(1);
     
-    // Create table headers with sorting capability
+    // Create table headers with sorting capability and type indicators
     this.elements.dataTableHead.innerHTML = '';
     const headerRow = document.createElement('tr');
     headers.forEach((header, index) => {
       const th = document.createElement('th');
-      th.textContent = header;
-      th.className = 'sortable';
+      const columnType = this.columnTypes[index] || 'categorical';
+      
+      th.innerHTML = `
+        ${header}
+        <span class="category-indicator category-${columnType}">${columnType === 'numeric' ? 'NUM' : 'CAT'}</span>
+      `;
+      th.className = `sortable ${columnType}`;
       th.setAttribute('data-column', index);
-      th.title = 'Click to sort, double-click for statistics';
+      th.title = `${columnType.charAt(0).toUpperCase() + columnType.slice(1)} column - Click to sort`;
       
       // Add current sort indicator
       if (this.currentSort.column === index) {
@@ -136,12 +195,49 @@ class TableViewer {
       // Add click listener for sorting
       th.addEventListener('click', () => this.sortTable(index));
       
-      // Add click listener for column selection (for stats)
-      th.addEventListener('dblclick', () => this.selectColumn(index));
-      
       headerRow.appendChild(th);
     });
     this.elements.dataTableHead.appendChild(headerRow);
+    
+    // Create stats row
+    const statsRow = document.createElement('tr');
+    statsRow.className = 'stats-row';
+    headers.forEach((header, index) => {
+      const td = document.createElement('td');
+      const columnType = this.columnTypes[index] || 'categorical';
+      
+      if (columnType === 'numeric') {
+        td.innerHTML = `
+          <select class="stat-select" data-column="${index}">
+            <option value="count">Count</option>
+            <option value="sum">Sum</option>
+            <option value="avg">Average</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+            <option value="std">Std Dev</option>
+          </select>
+          <div id="stat-result-${index}"></div>
+        `;
+        const select = td.querySelector('.stat-select');
+        select.value = this.columnStats[index] || 'count';
+        select.addEventListener('change', (e) => this.updateColumnStat(index, e.target.value));
+      } else {
+        td.innerHTML = `
+          <select class="stat-select" data-column="${index}">
+            <option value="count">Count</option>
+            <option value="unique">Unique</option>
+            <option value="mode">Mode</option>
+          </select>
+          <div id="stat-result-${index}"></div>
+        `;
+        const select = td.querySelector('.stat-select');
+        select.value = this.columnStats[index] || 'count';
+        select.addEventListener('change', (e) => this.updateColumnStat(index, e.target.value));
+      }
+      
+      statsRow.appendChild(td);
+    });
+    this.elements.dataTableHead.appendChild(statsRow);
     
     // Create table body
     this.elements.dataTableBody.innerHTML = '';
@@ -155,7 +251,8 @@ class TableViewer {
       this.elements.dataTableBody.appendChild(tr);
     });
     
-    this.updateStats();
+    // Calculate and display initial stats
+    this.calculateAllStats();
   }
   
   setupDataControls() {
@@ -174,16 +271,16 @@ class TableViewer {
   }
   
   applyFilter() {
-    if (!this.tableData) return;
+    if (!this.originalData) return;
     
     const filterColumn = this.elements.filterColumn.value;
     const filterValue = this.elements.filterValue.value.toLowerCase().trim();
     
     if (!filterValue) {
-      this.filteredData = [...this.tableData];
+      this.filteredData = [...this.originalData];
     } else {
-      const headers = this.tableData[0];
-      const rows = this.tableData.slice(1);
+      const headers = this.originalData[0];
+      const rows = this.originalData.slice(1);
       
       const filteredRows = rows.filter(row => {
         if (filterColumn === '') {
@@ -203,7 +300,7 @@ class TableViewer {
     }
     
     // Reapply current sort if any
-    if (this.currentSort.column !== -1) {
+    if (this.currentSort.column !== -1 && this.currentSort.direction !== 'none') {
       this.sortTable(this.currentSort.column, this.currentSort.direction);
     } else {
       this.renderDataTable();
@@ -213,9 +310,94 @@ class TableViewer {
   clearFilter() {
     this.elements.filterColumn.value = '';
     this.elements.filterValue.value = '';
-    this.filteredData = [...this.tableData];
-    this.currentSort = { column: -1, direction: 'none' };
+    this.filteredData = [...this.originalData];
     this.renderDataTable();
+  }
+
+  updateColumnStat(columnIndex, statFunction) {
+    this.columnStats[columnIndex] = statFunction;
+    this.calculateColumnStat(columnIndex);
+  }
+  
+  calculateColumnStat(columnIndex) {
+    if (!this.filteredData || this.filteredData.length < 2) return;
+    
+    const rows = this.filteredData.slice(1);
+    const values = rows.map(row => row[columnIndex]).filter(val => val !== null && val !== undefined && val !== '');
+    const resultElement = document.getElementById(`stat-result-${columnIndex}`);
+    
+    if (!resultElement || values.length === 0) {
+      if (resultElement) resultElement.textContent = '0';
+      return;
+    }
+    
+    const statFunction = this.columnStats[columnIndex];
+    const columnType = this.columnTypes[columnIndex];
+    let result = 0;
+    
+    try {
+      if (columnType === 'numeric') {
+        const numericValues = values.map(v => parseFloat(String(v).replace(/[$,%]/g, ''))).filter(v => !isNaN(v));
+        
+        switch (statFunction) {
+          case 'count':
+            result = numericValues.length;
+            break;
+          case 'sum':
+            result = numericValues.reduce((a, b) => a + b, 0).toLocaleString();
+            break;
+          case 'avg':
+            result = numericValues.length > 0 ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length).toFixed(2) : 0;
+            break;
+          case 'min':
+            result = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+            break;
+          case 'max':
+            result = numericValues.length > 0 ? Math.max(...numericValues) : 0;
+            break;
+          case 'std':
+            if (numericValues.length > 1) {
+              const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+              const variance = numericValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numericValues.length;
+              result = Math.sqrt(variance).toFixed(2);
+            } else {
+              result = 0;
+            }
+            break;
+        }
+      } else {
+        // Categorical column
+        switch (statFunction) {
+          case 'count':
+            result = values.length;
+            break;
+          case 'unique':
+            result = new Set(values).size;
+            break;
+          case 'mode':
+            const frequency = {};
+            values.forEach(val => {
+              frequency[val] = (frequency[val] || 0) + 1;
+            });
+            const maxCount = Math.max(...Object.values(frequency));
+            const modes = Object.keys(frequency).filter(key => frequency[key] === maxCount);
+            result = modes[0] || 'N/A';
+            if (modes.length > 1) result += ` (+${modes.length - 1} more)`;
+            break;
+        }
+      }
+      
+      resultElement.textContent = result;
+    } catch (error) {
+      console.error('Error calculating stat:', error);
+      resultElement.textContent = 'Error';
+    }
+  }
+  
+  calculateAllStats() {
+    this.columnStats.forEach((statFunction, index) => {
+      this.calculateColumnStat(index);
+    });
   }
   
   sortTable(columnIndex, direction = null) {
@@ -241,24 +423,23 @@ class TableViewer {
     this.currentSort = { column: columnIndex, direction };
     
     if (direction === 'none') {
-      // Reset to original order
+      // Reset to filtered order (which maintains original order)
       this.applyFilter();
       return;
     }
     
-    // Sort rows
+    // Sort rows based on column type
+    const columnType = this.columnTypes[columnIndex] || 'categorical';
     const sortedRows = [...rows].sort((a, b) => {
       const aVal = a[columnIndex] || '';
       const bVal = b[columnIndex] || '';
       
-      // Try to parse as numbers
-      const aNum = parseFloat(aVal);
-      const bNum = parseFloat(bVal);
-      
       let comparison = 0;
       
-      if (!isNaN(aNum) && !isNaN(bNum)) {
+      if (columnType === 'numeric') {
         // Numeric comparison
+        const aNum = parseFloat(String(aVal).replace(/[$,%]/g, '')) || 0;
+        const bNum = parseFloat(String(bVal).replace(/[$,%]/g, '')) || 0;
         comparison = aNum - bNum;
       } else {
         // String comparison
@@ -270,45 +451,6 @@ class TableViewer {
     
     this.filteredData = [headers, ...sortedRows];
     this.renderDataTable();
-  }
-  
-  selectColumn(columnIndex) {
-    if (!this.filteredData || columnIndex < 0) return;
-    
-    const headers = this.filteredData[0];
-    const rows = this.filteredData.slice(1);
-    const columnName = headers[columnIndex];
-    
-    // Calculate statistics for the column
-    const values = rows.map(row => row[columnIndex]).filter(val => val !== null && val !== undefined && val !== '');
-    const numericValues = values.map(v => parseFloat(v)).filter(v => !isNaN(v));
-    
-    let stats = `${columnName}: ${values.length} values`;
-    
-    if (numericValues.length > 0) {
-      const sum = numericValues.reduce((a, b) => a + b, 0);
-      const avg = sum / numericValues.length;
-      const min = Math.min(...numericValues);
-      const max = Math.max(...numericValues);
-      
-      stats += ` | Sum: ${sum.toLocaleString()} | Avg: ${avg.toFixed(2)} | Min: ${min} | Max: ${max}`;
-    }
-    
-    this.elements.selectedColumnStats.textContent = stats;
-  }
-  
-  updateStats() {
-    if (!this.tableData || !this.filteredData) return;
-    
-    const totalRows = this.tableData.length - 1; // Exclude header
-    const visibleRows = this.filteredData.length - 1; // Exclude header
-    
-    this.elements.totalRows.textContent = totalRows.toLocaleString();
-    this.elements.visibleRows.textContent = visibleRows.toLocaleString();
-    
-    if (!this.elements.selectedColumnStats.textContent || this.elements.selectedColumnStats.textContent === 'None') {
-      this.elements.selectedColumnStats.textContent = 'Double-click column header for stats';
-    }
   }
   
   exportData(format) {
@@ -491,14 +633,7 @@ class TableViewer {
   }
   
   isNumericColumn(columnIndex) {
-    if (!this.tableData || !this.tableData[0]) return false;
-    
-    const columnName = this.tableData[0][columnIndex].toLowerCase();
-    const numericKeywords = ['count', 'total', 'sum', 'avg', 'average', 'number', 'amount', 'value', 'price', 'cost', 'score', 'rate', 'percent'];
-    
-    return numericKeywords.some(keyword => columnName.includes(keyword)) || 
-           /\d/.test(columnName) ||
-           columnName.includes('%');
+    return this.columnTypes && this.columnTypes[columnIndex] === 'numeric';
   }
   
   generateChart(chartId) {

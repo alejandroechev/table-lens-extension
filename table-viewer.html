@@ -225,9 +225,52 @@
       color: #667eea;
     }
     
-    .data-table th.sort-desc::after {
-      content: ' ↓';
-      color: #667eea;
+    .data-table th.categorical {
+      background: #e3f2fd;
+      border-left: 3px solid #2196f3;
+    }
+    
+    .data-table th.numeric {
+      background: #f3e5f5;
+      border-left: 3px solid #9c27b0;
+    }
+    
+    .stats-row {
+      background: #fff3e0;
+      border-top: 2px solid #ff9800;
+    }
+    
+    .stats-row td {
+      font-weight: 600;
+      font-size: 11px;
+      color: #e65100;
+      padding: 6px 12px;
+    }
+    
+    .stat-select {
+      width: 100%;
+      font-size: 10px;
+      padding: 2px 4px;
+      border: 1px solid #ddd;
+      background: white;
+    }
+    
+    .category-indicator {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-left: 5px;
+      font-weight: 500;
+    }
+    
+    .category-categorical {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    
+    .category-numeric {
+      background: #f3e5f5;
+      color: #7b1fa2;
     }
 
     .data-table tr:hover {
@@ -476,25 +519,11 @@
           </div>
           <div class="control-group">
             <button id="clearFilter" class="btn btn-secondary">Clear</button>
+            <button id="resetSort" class="btn btn-secondary">Reset Sort</button>
           </div>
           <div class="export-buttons">
             <button id="exportCSV" class="btn btn-primary">📄 Export CSV</button>
             <button id="exportTSV" class="btn btn-secondary">📋 Export TSV</button>
-          </div>
-        </div>
-        
-        <div class="data-stats" id="dataStats">
-          <div class="stat-item">
-            <span>Total Rows:</span>
-            <span class="stat-value" id="totalRows">0</span>
-          </div>
-          <div class="stat-item">
-            <span>Visible Rows:</span>
-            <span class="stat-value" id="visibleRows">0</span>
-          </div>
-          <div class="stat-item">
-            <span>Selected Column:</span>
-            <span class="stat-value" id="selectedColumnStats">None</span>
           </div>
         </div>
         
