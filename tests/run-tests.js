@@ -12,6 +12,12 @@ try {
 } catch (e) {
   console.error('Failed loading table cleanup tests', e);
 }
+try {
+  const collection4 = require('./htmlParser.test.js');
+  tests = tests.concat(collection4);
+} catch (e) {
+  console.error('Failed loading HTML parser tests', e);
+}
 
 let passed = 0;
 let failed = 0;

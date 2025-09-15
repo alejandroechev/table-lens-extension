@@ -220,18 +220,61 @@ class TableViewer {
   cleanTableData(tableData) {
     if (!tableData || tableData.length === 0) return tableData;
     
-    // First, identify which columns have any non-empty data
-    const columnHasData = new Array(tableData[0].length).fill(false);
+    // Ensure all rows have the same length (fill missing columns with empty strings)
+    const maxCols = Math.max(...tableData.map(row => row.length));
+    const normalizedData = tableData.map(row => {
+      const normalizedRow = [...row];
+      while (normalizedRow.length < maxCols) {
+        normalizedRow.push('');
+      }
+      return normalizedRow;
+    });
     
-    // Check all rows to see which columns contain data
-    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
-      const row = tableData[rowIndex];
+    // Be more conservative about what constitutes "empty"
+    // A column is only empty if ALL non-header rows are empty
+    const columnHasData = new Array(maxCols).fill(false);
+    
+    // Check all rows except the header to see which columns contain data
+    for (let rowIndex = 1; rowIndex < normalizedData.length; rowIndex++) {
+      const row = normalizedData[rowIndex];
       for (let colIndex = 0; colIndex < row.length; colIndex++) {
         const cell = row[colIndex];
         // Consider a cell non-empty if it contains any non-whitespace text
         if (cell != null && String(cell).trim() !== '') {
           columnHasData[colIndex] = true;
         }
+      }
+    }
+    
+    // Also check the header row, but be more lenient 
+    // (allow sparse headers due to colspan scenarios)
+    const headerRow = normalizedData[0];
+    for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+      const cell = headerRow[colIndex];
+      if (cell != null && String(cell).trim() !== '') {
+        columnHasData[colIndex] = true;
+      }
+    }
+    
+    // If fewer than half the columns have data, it might be a parsing issue
+    // In this case, be very conservative and only remove columns that are completely empty
+    const dataColumnCount = columnHasData.filter(Boolean).length;
+    const isLikelyComplexTable = dataColumnCount < maxCols * 0.5;
+    
+    if (isLikelyComplexTable && maxCols > 3) {
+      console.log(`⚠️ Detected complex table structure (${dataColumnCount}/${maxCols} columns have data). Using conservative cleanup.`);
+      
+      // For complex tables, only remove columns that are empty in ALL rows (including header)
+      for (let colIndex = 0; colIndex < maxCols; colIndex++) {
+        let hasAnyData = false;
+        for (let rowIndex = 0; rowIndex < normalizedData.length; rowIndex++) {
+          const cell = normalizedData[rowIndex][colIndex];
+          if (cell != null && String(cell).trim() !== '') {
+            hasAnyData = true;
+            break;
+          }
+        }
+        columnHasData[colIndex] = hasAnyData;
       }
     }
     
@@ -242,14 +285,14 @@ class TableViewer {
     // If all columns are empty, return original data to avoid breaking everything
     if (validColumns.length === 0) {
       console.warn('⚠️ All columns appear empty, keeping original table structure');
-      return tableData;
+      return normalizedData;
     }
     
     // Filter out empty columns and empty rows
     const cleanedRows = [];
     
-    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
-      const originalRow = tableData[rowIndex];
+    for (let rowIndex = 0; rowIndex < normalizedData.length; rowIndex++) {
+      const originalRow = normalizedData[rowIndex];
       
       // Create new row with only non-empty columns
       const filteredRow = validColumns.map(colIndex => originalRow[colIndex]);
@@ -260,20 +303,21 @@ class TableViewer {
       );
       
       // Keep the header row (index 0) even if empty, and any row with data
+      // But be more lenient about what constitutes an \"empty\" row
       if (rowIndex === 0 || rowHasData) {
         cleanedRows.push(filteredRow);
       }
     }
     
     // Log cleanup results
-    const removedColumns = tableData[0].length - validColumns.length;
-    const removedRows = tableData.length - cleanedRows.length;
+    const removedColumns = maxCols - validColumns.length;
+    const removedRows = normalizedData.length - cleanedRows.length;
     
     if (removedColumns > 0 || removedRows > 0) {
-      console.log(`🧹 Table cleanup: removed ${removedRows} empty rows and ${removedColumns} empty columns`);
+      console.log(`🧹 Table cleanup: removed ${removedRows} empty rows and ${removedColumns} empty columns (${normalizedData.length}x${maxCols} → ${cleanedRows.length}x${validColumns.length})`);
     }
     
-    return cleanedRows.length > 0 ? cleanedRows : tableData;
+    return cleanedRows.length > 0 ? cleanedRows : normalizedData;
   }
   
   updateHeader() {

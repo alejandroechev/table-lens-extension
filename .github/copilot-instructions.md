@@ -10,18 +10,23 @@ Added pure utility modules under `utils/` with corresponding tests under `tests/
 - `utils/stats.js`: Numeric statistics (population std dev) mirroring TableViewer logic
 - `tests/numberFormat.test.js`: Chilean money detection & parsing
 - `tests/stats.test.js`: Verifies stats calculations (sum, avg, min, max, std, count) for CLP columns
-- `tests/tableCleanup.test.js`: Validates empty row/column removal with 9 test cases including edge cases
+- `tests/tableCleanup.test.js`: Validates empty row/column removal with 10 test cases including complex table structures
+- `tests/htmlParser.test.js`: Validates HTML table parsing with colspan/rowspan support
 - `tests/run-tests.js`: Aggregates and runs all tests (run via `npm test`)
 
-Total test coverage: **14 tests passing** covering number format detection, statistical calculations, and table data cleaning.
+Total test coverage: **17 tests passing** covering number format detection, statistical calculations, table data cleaning, and HTML parsing.
 
-These utilities ensure future refactors of in-UI logic (TableViewer) don't silently break numeric parsing, statistical correctness, or table processing reliability.mn Removal Feature
+These utilities ensure future refactors of in-UI logic (TableViewer) don't silently break numeric parsing, statistical correctness, or table processing reliability.
+
+#### Empty Row/Column Removal Feature
 - **Table Data Cleaning**: Implemented automatic removal of empty rows and columns from displayed tables
   - Automatically removes columns that contain only empty/whitespace-only cells
   - Automatically removes rows that contain only empty/whitespace-only data 
   - Preserves header row (index 0) even if empty to maintain table structure
-  - Handles edge cases: all-empty tables, partial data, null/undefined values
-  - Comprehensive test coverage with 9 test cases including Chilean banking format
+  - **Smart Complex Table Detection**: Detects tables with colspan/rowspan and uses conservative cleanup to prevent data loss
+  - Enhanced HTML parser with proper colspan/rowspan support for accurate table structure parsing
+  - Handles edge cases: all-empty tables, partial data, null/undefined values, complex calendar layouts
+  - Comprehensive test coverage with 12 test cases including complex table structures and HTML parsing validation
   - Integrated into `handleTableData()` method for automatic cleanup before display
 
 #### Chart System Enhancementspdate this file.

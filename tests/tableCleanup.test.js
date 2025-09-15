@@ -206,6 +206,24 @@ function testChileanBankingTable() {
   assert.deepStrictEqual(result, expected, 'Failed Chilean banking table cleanup');
 }
 
+function testComplexTableWithColspan() {
+  // Simulate what the improved HTML parser should produce for a colspan table
+  const input = [
+    ['Septiembre', '', '', '', '', ''],  // Header with colspan=6 should create 6 columns
+    ['1', '39.394,46', '11', '39.485,65', '21', '39.485,65'],
+    ['2', '39.405,85', '12', '39.485,65', '22', '39.485,65'],
+    ['3', '39.417,24', '13', '39.485,65', '23', '39.485,65'],
+    ['', '', '', '', '31', '']  // Partial row with some empty cells
+  ];
+
+  // With complex table detection, this should NOT be aggressively cleaned
+  const result = viewer.cleanTableData(input);
+  
+  // Should preserve the structure since it's a complex table
+  const expected = input; // No cleanup should happen for complex tables
+  assert.deepStrictEqual(result, expected, 'Failed to preserve complex table structure');
+}
+
 // Export tests in the same format as other test files
 module.exports = [
   { name: 'Table Cleanup: Remove Empty Columns', fn: testRemoveEmptyColumns },
@@ -216,5 +234,6 @@ module.exports = [
   { name: 'Table Cleanup: Partial Data Table', fn: testPartialDataTable },
   { name: 'Table Cleanup: All Empty Columns', fn: testAllEmptyColumns },
   { name: 'Table Cleanup: Edge Cases', fn: testEdgeCases },
-  { name: 'Table Cleanup: Chilean Banking Format', fn: testChileanBankingTable }
+  { name: 'Table Cleanup: Chilean Banking Format', fn: testChileanBankingTable },
+  { name: 'Table Cleanup: Complex Table with Colspan', fn: testComplexTableWithColspan }
 ];

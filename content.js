@@ -32,15 +32,71 @@ class TableParser {
     const rows = table.querySelectorAll('tr');
     const data = [];
     
+    // First pass: determine the maximum number of columns needed
+    let maxCols = 0;
+    const parsedRows = [];
+    
     rows.forEach(row => {
       const cells = row.querySelectorAll('td, th');
-      const rowData = Array.from(cells).map(cell => cell.textContent.trim());
+      const rowData = [];
+      let colIndex = 0;
+      
+      cells.forEach(cell => {
+        const content = cell.textContent.trim();
+        const colspan = parseInt(cell.getAttribute('colspan') || '1');
+        const rowspan = parseInt(cell.getAttribute('rowspan') || '1');
+        
+        // Add the cell content
+        rowData.push({
+          content,
+          colspan,
+          rowspan,
+          startCol: colIndex
+        });
+        
+        colIndex += colspan;
+      });
+      
       if (rowData.length > 0) {
-        data.push(rowData);
+        parsedRows.push(rowData);
+        maxCols = Math.max(maxCols, colIndex);
       }
     });
     
-    return data;
+    // Second pass: create a grid structure
+    const grid = [];
+    
+    parsedRows.forEach((rowCells, rowIndex) => {
+      if (!grid[rowIndex]) grid[rowIndex] = new Array(maxCols).fill('');
+      
+      let colOffset = 0;
+      
+      rowCells.forEach(cellData => {
+        // Find the next available column position
+        while (colOffset < maxCols && grid[rowIndex][colOffset] !== '') {
+          colOffset++;
+        }
+        
+        // Fill the cell and handle colspan/rowspan
+        for (let r = 0; r < cellData.rowspan; r++) {
+          for (let c = 0; c < cellData.colspan; c++) {
+            const targetRow = rowIndex + r;
+            const targetCol = colOffset + c;
+            
+            if (!grid[targetRow]) grid[targetRow] = new Array(maxCols).fill('');
+            
+            if (targetRow < grid.length && targetCol < maxCols) {
+              // Only put content in the first cell of a colspan/rowspan
+              grid[targetRow][targetCol] = (r === 0 && c === 0) ? cellData.content : '';
+            }
+          }
+        }
+        
+        colOffset += cellData.colspan;
+      });
+    });
+    
+    return grid.filter(row => row && row.length > 0);
   }
   
   static parseMarkdownTable(markdownText) {
