@@ -416,6 +416,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } catch (e) {
       sendResponse({ success:false, error: e.message });
     }
+  } else if (request.action === 'getAllTablesData') {
+    try {
+      const payload = tableDetector.tables.map(t => ({
+        id: t.id,
+        data: t.data
+      }));
+      sendResponse({ success:true, tables: payload });
+    } catch (e) {
+      sendResponse({ success:false, error: e.message });
+    }
   }
   
   return true; // Keep message channel open

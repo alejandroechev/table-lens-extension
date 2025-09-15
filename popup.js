@@ -3,6 +3,8 @@ class PopupController {
     this.tables = [];
     this.selectedTableIndex = -1;
     this.selectedTable = null;
+    this.tableSearchCache = []; // full-text per table (lowercased)
+    this.searchCacheReady = false;
     
     this.initializeElements();
     this.attachEventListeners();
@@ -13,6 +15,7 @@ class PopupController {
   initializeElements() {
     this.elements = {
       tableList: document.getElementById('tableList'),
+      tableSearch: document.getElementById('tableSearch'),
       chartOptions: document.getElementById('chartOptions'),
       chartType: document.getElementById('chartType'),
       xColumn: document.getElementById('xColumn'),
@@ -33,6 +36,9 @@ class PopupController {
   this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
   this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
   this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
+    if (this.elements.tableSearch) {
+      this.elements.tableSearch.addEventListener('input', () => this.renderTableList());
+    }
     this.elements.generateChart.addEventListener('click', () => this.generateChart());
     this.elements.exportPNG.addEventListener('click', () => this.exportChart('png'));
     this.elements.exportSVG.addEventListener('click', () => this.exportChart('svg'));
@@ -128,6 +134,8 @@ class PopupController {
         });
       });
       this.renderTableList();
+      // Build search cache after adding tables
+      this.buildSearchCache(tab.id);
       this.showStatus(`Successfully extracted ${normalized.length} table(s) from PDF`, 'success');
       setTimeout(() => this.hideStatus(), 2500);
     } catch (e) {
@@ -145,6 +153,7 @@ class PopupController {
       
       this.tables = response.tables || [];
       this.renderTableList();
+  this.buildSearchCache(tab.id);
       
       if (this.tables.length === 0) {
         this.showStatus('No tables found on this webpage', 'error');
@@ -175,12 +184,45 @@ class PopupController {
       });
       if (added > 0) {
         this.renderTableList();
+        this.buildSearchCache(tab.id);
         this.showStatus(`Restored ${added} table(s) from previous extraction`, 'success');
         setTimeout(()=>this.hideStatus(), 2000);
       }
     } catch (e) {
       // Silent fail – likely no content script yet
       console.debug('No existing tables to restore:', e.message);
+    }
+  }
+
+  async buildSearchCache(tabId) {
+    if (!tabId) {
+      const tabs = await chrome.tabs.query({ active:true, currentWindow:true });
+      tabId = tabs[0]?.id;
+    }
+    if (!tabId) return;
+    try {
+      this.searchCacheReady = false;
+      const resp = await chrome.tabs.sendMessage(tabId, { action: 'getAllTablesData' });
+      if (!resp || !resp.success) return;
+      const map = new Map(resp.tables.map(t => [t.id, t.data]));
+      this.tableSearchCache = this.tables.map(t => {
+        const data = map.get(t.id);
+        if (!data) return (t.preview||'').toLowerCase();
+        // Flatten rows to a single search blob
+        try {
+          const flat = data.map(row => (Array.isArray(row)? row.join(' ') : '')).join(' \n ');
+          return flat.toLowerCase();
+        } catch {
+          return (t.preview||'').toLowerCase();
+        }
+      });
+      this.searchCacheReady = true;
+      // Re-render if a query is in progress
+      if ((this.elements.tableSearch?.value||'').trim()) {
+        this.renderTableList();
+      }
+    } catch (e) {
+      console.debug('Failed to build search cache:', e.message);
     }
   }
 
@@ -374,23 +416,42 @@ class PopupController {
       this.elements.chartOptions.style.display = 'none';
       return;
     }
-    
-    const tableItems = this.tables.map((table, index) => `
-      <div class="table-item" data-index="${index}">
-        <div class="table-type">
-          <strong>${this.getTableTypeDisplay(table.type)}</strong>
-          <span class="table-columns">(${table.columns.length} columns)</span>
+    const q = (this.elements.tableSearch?.value || '').trim().toLowerCase();
+    const filtered = q ? this.tables.filter((t, idx) => {
+      const hay = this.tableSearchCache[idx] || (t.preview + '\n' + (t.columns||[]).join(' ')).toLowerCase();
+      return hay.includes(q);
+    }) : this.tables;
+
+    const highlight = (text) => {
+      if (!q) return text;
+      try {
+        const re = new RegExp('(' + q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'ig');
+        return text.replace(re, '<span class="match-highlight">$1</span>');
+      } catch { return text; }
+    };
+
+    const tableItems = filtered.map((table, visibleIndex) => {
+      const originalIndex = this.tables.indexOf(table);
+      const previewHtml = highlight(table.preview || '');
+      const metaBits = [];
+      if (typeof table.page === 'number') metaBits.push('p' + (table.page+1));
+      if (typeof table.tableIndex === 'number') metaBits.push('#' + table.tableIndex);
+      const meta = metaBits.length ? metaBits.join(' ') : '';
+      return `
+      <div class="table-item" data-index="${originalIndex}">
+        <div class="table-item-header">
+          <span>${table.columns.length} cols ${meta ? '• ' + meta : ''}</span>
         </div>
-        <div class="table-preview">${table.preview}</div>
-      </div>
-    `).join('');
+        <div class="table-preview">${previewHtml}</div>
+      </div>`;
+    }).join('');
     
     this.elements.tableList.innerHTML = tableItems;
     
     // Attach click handlers
     this.elements.tableList.querySelectorAll('.table-item').forEach(item => {
       item.addEventListener('click', () => {
-        const index = parseInt(item.dataset.index);
+        const index = parseInt(item.dataset.index, 10);
         this.openTableViewer(index);
       });
     });
