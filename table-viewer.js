@@ -341,6 +341,10 @@ class TableViewer {
       }
       if (['numeric','money','percentage'].includes(inferredType)) {
         const fmt = this.inferNumberFormat(numericSamples);
+        console.log(`🔍 Column ${colIndex} ("${header}") - Type: ${inferredType}`);
+        console.log(`📊 Samples for inference:`, numericSamples.slice(0, 5));
+        console.log(`🎯 Inferred format:`, fmt);
+        console.log(`💾 Final stored format:`, fmt || { thousand: ',', decimal: '.' });
         this.numericFormatMap[colIndex] = fmt || { thousand: ',', decimal: '.' };
       }
       return inferredType;
@@ -553,6 +557,7 @@ class TableViewer {
         if (safeDecimal === safeThousand && safeDecimal !== '') {
           safeThousand = safeDecimal === '.' ? ',' : '.';
         }
+        console.log(`⚙️ User override applied for column ${columnIndex}:`, { thousand: safeThousand, decimal: safeDecimal });
         this.numericFormatMap[columnIndex] = { thousand: safeThousand, decimal: safeDecimal };
       }
       this.renderDataTable();
@@ -723,110 +728,47 @@ class TableViewer {
     let result = 0;
     
     try {
+      if (!window.TableStats) throw new Error('Stats library not loaded');
       if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
+        console.log(`📈 Computing stats for column ${columnIndex} (${statFunction})`);
+        console.log(`📝 Raw values:`, values.slice(0, 5));
         const numericValues = values.map(v => this.parseNumericValue(v, columnIndex)).filter(v => !isNaN(v));
-        
+        console.log(`🔢 Parsed numeric values:`, numericValues.slice(0, 5));
+        let raw = window.TableStats.computeNumericStatsFromNumbers(numericValues, statFunction);
         switch (statFunction) {
-          case 'count':
-            result = numericValues.length;
-            break;
           case 'sum':
-            result = numericValues.reduce((a, b) => a + b, 0);
-            if (columnType === 'money') result = result.toLocaleString();
-            else if (columnType === 'percentage') result = result.toFixed(2) + '%';
-            else result = result.toLocaleString();
+          case 'min':
+          case 'max':
+            if (columnType === 'money') raw = Number(raw).toLocaleString();
+            else if (columnType === 'percentage') raw = Number(raw).toFixed(2) + '%';
             break;
           case 'avg':
-            const avg = numericValues.length > 0 ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length) : 0;
-            if (columnType === 'money') result = avg.toLocaleString();
-            else if (columnType === 'percentage') result = avg.toFixed(2) + '%';
-            else result = avg.toFixed(2);
-            break;
-          case 'min':
-            const min = numericValues.length > 0 ? Math.min(...numericValues) : 0;
-            if (columnType === 'money') result = min.toLocaleString();
-            else if (columnType === 'percentage') result = min.toFixed(2) + '%';
-            else result = min;
-            break;
-          case 'max':
-            const max = numericValues.length > 0 ? Math.max(...numericValues) : 0;
-            if (columnType === 'money') result = max.toLocaleString();
-            else if (columnType === 'percentage') result = max.toFixed(2) + '%';
-            else result = max;
-            break;
           case 'std':
-            if (numericValues.length > 1) {
-              const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
-              const variance = numericValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numericValues.length;
-              const std = Math.sqrt(variance);
-              if (columnType === 'money') result = std.toLocaleString();
-              else if (columnType === 'percentage') result = std.toFixed(2) + '%';
-              else result = std.toFixed(2);
-            } else {
-              result = 0;
-            }
+            if (columnType === 'money') raw = Number(raw).toLocaleString();
+            else if (columnType === 'percentage') raw = Number(raw).toFixed(2) + '%';
+            else raw = Number(raw).toFixed(2);
             break;
         }
+        result = raw;
       } else if (columnType === 'date') {
-        const dateValues = values.map(v => new Date(v)).filter(d => !isNaN(d.getTime()));
-        
-        switch (statFunction) {
-          case 'count':
-            result = dateValues.length;
-            break;
-          case 'unique':
-            result = new Set(values).size;
-            break;
-          case 'mode':
-            const frequency = {};
-            values.forEach(val => {
-              frequency[val] = (frequency[val] || 0) + 1;
-            });
-            const maxCount = Math.max(...Object.values(frequency));
-            const modes = Object.keys(frequency).filter(key => frequency[key] === maxCount);
-            result = modes[0] || 'N/A';
-            if (modes.length > 1) result += ` (+${modes.length - 1})`;
-            break;
-          case 'earliest':
-            result = dateValues.length > 0 ? new Date(Math.min(...dateValues)).toLocaleDateString() : 'N/A';
-            break;
-          case 'latest':
-            result = dateValues.length > 0 ? new Date(Math.max(...dateValues)).toLocaleDateString() : 'N/A';
-            break;
-          case 'range':
-            if (dateValues.length > 1) {
-              const earliest = new Date(Math.min(...dateValues));
-              const latest = new Date(Math.max(...dateValues));
-              const diffTime = Math.abs(latest - earliest);
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              result = `${diffDays} days`;
-            } else {
-              result = 'N/A';
-            }
-            break;
+        const statVal = window.TableStats.getStatValue('date', statFunction, values);
+        if (statFunction === 'earliest' || statFunction === 'latest') {
+          result = statVal ? statVal.toLocaleDateString() : 'N/A';
+        } else if (statFunction === 'range') {
+          result = statVal === 0 || statVal == null ? 'N/A' : `${statVal} days`;
+        } else if (statFunction === 'count') {
+          result = statVal;
+        } else if (statFunction === 'mode' || statFunction === 'unique') {
+          result = statVal; // Should not be typical for date unless chosen
         }
       } else {
-        // Categorical column
-        switch (statFunction) {
-          case 'count':
-            result = values.length;
-            break;
-          case 'unique':
-            result = new Set(values).size;
-            break;
-          case 'mode':
-            const frequency = {};
-            values.forEach(val => {
-              frequency[val] = (frequency[val] || 0) + 1;
-            });
-            const maxCount = Math.max(...Object.values(frequency));
-            const modes = Object.keys(frequency).filter(key => frequency[key] === maxCount);
-            result = modes[0] || 'N/A';
-            if (modes.length > 1) result += ` (+${modes.length - 1})`;
-            break;
+        const catVal = window.TableStats.getStatValue('categorical', statFunction, values);
+        if (statFunction === 'mode' && catVal && typeof catVal === 'object') {
+          result = catVal.value + (catVal.extra ? ` (+${catVal.extra})` : '');
+        } else {
+          result = catVal;
         }
       }
-      
       resultElement.textContent = result;
     } catch (error) {
       console.error('Error calculating stat:', error);
@@ -1366,20 +1308,42 @@ class TableViewer {
     if (value === null || value === undefined || value === '') return 0;
     const str = String(value).trim();
     const fmt = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
-    // Remove currency symbols and %
-    let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'').replace(/%/g,'');
-    // Remove thousand separators only when in thousand position (lookahead 3 digits)
-    if (fmt.thousand) {
-      const ts = fmt.thousand === ' ' ? /\s(?=\d{3}(?:\D|$))/g : new RegExp('(?<=\d)\\' + fmt.thousand + '(?=\d{3}(?:\D|$))','g');
-      cleaned = cleaned.replace(ts,'');
+    console.log(`🧮 Parsing "${str}" (col ${columnIndex}) with format:`, fmt);
+    
+    // Remove currency symbols and percent and trim
+    let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'').replace(/%/g,'').trim();
+    // Remove spaces at start and collapse
+    cleaned = cleaned.replace(/\s+/g,' ');
+    // Extract sign
+    let sign = 1;
+    if (/^-/.test(cleaned)) { sign = -1; }
+    cleaned = cleaned.replace(/^[-+]/,'');
+    // Keep only digits, separators, spaces
+    cleaned = cleaned.replace(/[^0-9.,\s]/g,'');
+    
+    // Strategy: split on decimal separator occurrence nearest to end
+    let integerPart = cleaned;
+    let decimalPart = '';
+    if (fmt.decimal && cleaned.includes(fmt.decimal)) {
+      const lastIdx = cleaned.lastIndexOf(fmt.decimal);
+      integerPart = cleaned.slice(0, lastIdx);
+      decimalPart = cleaned.slice(lastIdx + 1).replace(/[^0-9]/g,'');
     }
-    if (fmt.decimal && fmt.decimal !== '.') {
-      const decRegex = new RegExp('\\' + fmt.decimal + '(?=\d{1,4}$)');
-      cleaned = cleaned.replace(decRegex, '.');
-    }
-    cleaned = cleaned.replace(/[^0-9+\-.]/g,'');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
+    
+    // Remove thousand separators from integerPart
+    const thousandRegex = fmt.thousand === ' ' ? /\s+/g : new RegExp('\\' + fmt.thousand, 'g');
+    if (fmt.thousand) integerPart = integerPart.replace(thousandRegex, '');
+    // Remove all non-digits
+    integerPart = integerPart.replace(/[^0-9]/g,'');
+    if (integerPart === '') integerPart = '0';
+    
+    let normalized = integerPart;
+    if (decimalPart) normalized += '.' + decimalPart;
+    
+    const num = parseFloat(normalized) * sign;
+    const result = isNaN(num) ? 0 : num;
+    console.log(`✅ Parse result: "${str}" → ${result} (cleaned: "${normalized}")`);
+    return result;
   }
   
   generateColors(count, datasetIndex) {

@@ -1,4 +1,11 @@
-const tests = require('./numberFormat.test.js');
+const collection1 = require('./numberFormat.test.js');
+let tests = [...collection1];
+try {
+  const collection2 = require('./stats.test.js');
+  tests = tests.concat(collection2);
+} catch (e) {
+  console.error('Failed loading stats tests', e);
+}
 
 let passed = 0;
 let failed = 0;

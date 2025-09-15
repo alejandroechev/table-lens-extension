@@ -4,6 +4,8 @@ First rule to follow: After making relevant changes to the application, update t
 
 Second rule to follow: Always add tests and run-tests after making a change.
 
+Third rule to follow: Never try to add or commit your changes.
+
 ## Current State and Design
 
 ### User-Facing Features
@@ -159,5 +161,21 @@ The extension normalizes different table response formats:
 2. **HTML pages**: Tables in different formats (HTML, CSV in pre blocks, Markdown)
 3. **Error conditions**: Network failures, empty results, malformed responses
 4. **Fallback scenarios**: Legacy service compatibility
+5. **Locale Number Parsing & Stats**: Utility tests cover:
+  - Chilean CLP money detection across multiple columns (Cargos, Abono, Saldo)
+  - Thousand (.) + decimal (,) inference with no explicit decimal part present
+  - Parsing correctness feeding into stats (sum, avg, min, max, std, count)
+
+### Test Suite Summary (Node-Based Utilities)
+
+Added pure utility modules under `utils/` with corresponding tests under `tests/`:
+
+- `utils/numberFormat.js`: Inference & parsing (locale-aware)
+- `utils/stats.js`: Numeric statistics (population std dev) mirroring TableViewer logic
+- `tests/numberFormat.test.js`: Chilean money detection & parsing
+- `tests/stats.test.js`: Verifies stats calculations (sum, avg, min, max, std, count) for CLP columns
+- `tests/run-tests.js`: Aggregates and runs all tests (run via `npm test`)
+
+These utilities ensure future refactors of in-UI logic (TableViewer) don’t silently break numeric parsing or statistical correctness.
 
 This architecture provides a clean user experience while maintaining the flexibility to expose additional features in the future without code restructuring.
