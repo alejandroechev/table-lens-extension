@@ -945,25 +945,7 @@ class TableViewer {
       const config = this.createChartConfig(chartType, chartData, xColumn, yColumns);
       
       // Apply theme-sensitive styling
-      const isDark = (document.body.getAttribute('data-theme') || 'light') === 'dark';
-      const axisColor = isDark ? '#cbd5e0' : '#495057';
-      const gridColor = isDark ? 'rgba(203,213,224,0.15)' : 'rgba(0,0,0,0.1)';
-      const titleColor = isDark ? '#e2e8f0' : '#333';
-      if (!config.options) config.options = {};
-      config.options.plugins = config.options.plugins || {};
-      config.options.plugins.legend = config.options.plugins.legend || {};
-      config.options.plugins.legend.labels = config.options.plugins.legend.labels || {};
-      config.options.plugins.legend.labels.color = axisColor;
-      config.options.plugins.title = config.options.plugins.title || {};
-      if (config.options.plugins.title.display) {
-        config.options.plugins.title.color = titleColor;
-      }
-      if (config.options.scales) {
-        Object.values(config.options.scales).forEach(scale => {
-          if (scale.ticks) scale.ticks.color = axisColor; else scale.ticks = { color: axisColor };
-          if (scale.grid) scale.grid.color = gridColor; else scale.grid = { color: gridColor };
-        });
-      }
+      this.applyChartTheme(config, canvas);
       // Create chart
       const chart = new Chart(ctx, config);
       this.charts.set(chartId, chart);
@@ -1059,6 +1041,87 @@ class TableViewer {
     return `#${darkened.map(c => c.toString(16).padStart(2, '0')).join('')}`;
   }
   
+  applyChartTheme(config, canvas) {
+    const isDark = (document.body.getAttribute('data-theme') || 'light') === 'dark';
+    const axisColor = isDark ? '#cbd5e0' : '#495057';
+    const gridColor = isDark ? 'rgba(203,213,224,0.15)' : 'rgba(0,0,0,0.1)';
+    const titleColor = isDark ? '#e2e8f0' : '#333';
+    const backgroundColor = isDark ? '#2d3748' : '#ffffff';
+    const tooltipBg = isDark ? '#4a5568' : '#333';
+    const tooltipText = isDark ? '#e2e8f0' : '#fff';
+    
+    // Set canvas background
+    if (canvas) {
+      canvas.style.backgroundColor = backgroundColor;
+    }
+    
+    // Apply theme to chart configuration
+    if (!config.options) config.options = {};
+    
+    // Plugin styling
+    config.options.plugins = config.options.plugins || {};
+    
+    // Legend styling
+    config.options.plugins.legend = config.options.plugins.legend || {};
+    config.options.plugins.legend.labels = config.options.plugins.legend.labels || {};
+    config.options.plugins.legend.labels.color = axisColor;
+    
+    // Title styling
+    config.options.plugins.title = config.options.plugins.title || {};
+    if (config.options.plugins.title.display) {
+      config.options.plugins.title.color = titleColor;
+    }
+    
+    // Tooltip styling
+    config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+    config.options.plugins.tooltip.backgroundColor = tooltipBg;
+    config.options.plugins.tooltip.titleColor = tooltipText;
+    config.options.plugins.tooltip.bodyColor = tooltipText;
+    config.options.plugins.tooltip.borderColor = gridColor;
+    config.options.plugins.tooltip.borderWidth = 1;
+    
+    // Scale styling
+    if (config.options.scales) {
+      Object.values(config.options.scales).forEach(scale => {
+        // Tick styling
+        if (scale.ticks) {
+          scale.ticks.color = axisColor;
+        } else {
+          scale.ticks = { color: axisColor };
+        }
+        
+        // Grid styling
+        if (scale.grid) {
+          scale.grid.color = gridColor;
+        } else {
+          scale.grid = { color: gridColor };
+        }
+        
+        // Title styling
+        if (scale.title) {
+          scale.title.color = axisColor;
+        }
+      });
+    }
+  }
+
+  updateAllChartsTheme() {
+    // Update all existing charts with new theme
+    this.charts.forEach((chart, chartId) => {
+      const canvas = document.getElementById(`${chartId}-canvas`);
+      if (canvas && chart) {
+        // Apply theme to canvas
+        const isDark = (document.body.getAttribute('data-theme') || 'light') === 'dark';
+        const backgroundColor = isDark ? '#2d3748' : '#ffffff';
+        canvas.style.backgroundColor = backgroundColor;
+        
+        // Apply theme to chart configuration and update
+        this.applyChartTheme(chart.config, canvas);
+        chart.update('none'); // Update without animation for theme switch
+      }
+    });
+  }
+
   createChartConfig(chartType, chartData, xColumn, yColumns) {
     const headers = this.tableData[0];
     
@@ -1272,6 +1335,8 @@ class TableViewer {
     const currentTheme = document.body.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     this.setTheme(newTheme);
+    // Update all existing charts with new theme
+    this.updateAllChartsTheme();
   }
   
   setTheme(theme) {
@@ -1284,6 +1349,11 @@ class TableViewer {
       if (icon) {
         icon.textContent = theme === 'dark' ? '☀️' : '🌙';
       }
+    }
+    
+    // Update existing charts if any
+    if (this.charts && this.charts.size > 0) {
+      this.updateAllChartsTheme();
     }
   }
 }
