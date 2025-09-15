@@ -735,21 +735,38 @@ class TableViewer {
         const numericValues = values.map(v => this.parseNumericValue(v, columnIndex)).filter(v => !isNaN(v));
         console.log(`🔢 Parsed numeric values:`, numericValues.slice(0, 5));
         let raw = window.TableStats.computeNumericStatsFromNumbers(numericValues, statFunction);
+        const fmt = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
+        
         switch (statFunction) {
+          case 'count':
+            result = raw;
+            break;
           case 'sum':
           case 'min':
           case 'max':
-            if (columnType === 'money') raw = Number(raw).toLocaleString();
-            else if (columnType === 'percentage') raw = Number(raw).toFixed(2) + '%';
+            if (columnType === 'money') {
+              // Format money using the column's thousand/decimal separators
+              const formatted = this.formatNumber(raw, fmt);
+              result = '$ ' + formatted;
+            } else if (columnType === 'percentage') {
+              result = Number(raw).toFixed(2) + '%';
+            } else {
+              result = this.formatNumber(raw, fmt);
+            }
             break;
           case 'avg':
           case 'std':
-            if (columnType === 'money') raw = Number(raw).toLocaleString();
-            else if (columnType === 'percentage') raw = Number(raw).toFixed(2) + '%';
-            else raw = Number(raw).toFixed(2);
+            if (columnType === 'money') {
+              const formatted = this.formatNumber(raw, fmt, 2);
+              result = '$ ' + formatted;
+            } else if (columnType === 'percentage') {
+              result = Number(raw).toFixed(2) + '%';
+            } else {
+              result = this.formatNumber(raw, fmt, 2);
+            }
             break;
         }
-        result = raw;
+        result = result;
       } else if (columnType === 'date') {
         const statVal = window.TableStats.getStatValue('date', statFunction, values);
         if (statFunction === 'earliest' || statFunction === 'latest') {
@@ -1186,7 +1203,40 @@ class TableViewer {
       }
     }
   }
-  
+
+  formatNumber(value, format, decimals = 0) {
+    if (isNaN(value) || value === null || value === undefined) return '0';
+    
+    const num = Number(value);
+    const fmt = format || { thousand: ',', decimal: '.' };
+    
+    // Split into integer and decimal parts
+    const parts = num.toFixed(decimals).split('.');
+    let integerPart = parts[0];
+    const decimalPart = parts[1];
+    
+    // Add thousand separators if specified
+    if (fmt.thousand && integerPart.length > 3) {
+      // Add thousand separators from right to left
+      const reversed = integerPart.split('').reverse();
+      const withSeparators = [];
+      for (let i = 0; i < reversed.length; i++) {
+        if (i > 0 && i % 3 === 0) {
+          withSeparators.push(fmt.thousand);
+        }
+        withSeparators.push(reversed[i]);
+      }
+      integerPart = withSeparators.reverse().join('');
+    }
+    
+    // Combine with decimal part if present
+    if (decimals > 0 && decimalPart) {
+      return integerPart + fmt.decimal + decimalPart;
+    }
+    
+    return integerPart;
+  }
+
   isNumericColumn(columnIndex) {
     const columnType = this.columnTypes && this.columnTypes[columnIndex];
     return columnType === 'numeric' || columnType === 'money' || columnType === 'percentage';
