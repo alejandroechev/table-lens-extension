@@ -380,12 +380,17 @@ class TableViewer {
       // Get appropriate icon and label for column type
       const typeInfo = this.getColumnTypeInfo(columnType);
       
+      // Determine current sort arrow if applicable
+      let sortArrow = '';
+      if (this.currentSort.column === index) {
+        if (this.currentSort.direction === 'asc') sortArrow = ' ▲';
+        else if (this.currentSort.direction === 'desc') sortArrow = ' ▼';
+      }
       th.innerHTML = `
         <div class="column-header">
-          <span class="column-name">${header}</span>
+          <span class="column-name" title="Click to sort">${header}${sortArrow}</span>
           <div class="column-type-container">
-            <span class="category-indicator category-${columnType}" title="${typeInfo.description}">${typeInfo.icon}</span>
-            <button class="type-edit-btn" data-column="${index}" title="Change column type">✎️</button>
+            <span class="category-indicator category-${columnType} type-edit-trigger" data-column="${index}" title="${typeInfo.description} (click to change type)">${typeInfo.icon}</span>
           </div>
         </div>`;
       th.className = `sortable ${columnType}`;
@@ -397,11 +402,10 @@ class TableViewer {
         th.classList.add(`sort-${this.currentSort.direction}`);
       }
       
-      // Add click listener for sorting (only on column name, not edit button)
+      // Add click listener for sorting (header text)
       th.querySelector('.column-name').addEventListener('click', () => this.sortTable(index));
-      
-      // Add click listener for type editing
-      th.querySelector('.type-edit-btn').addEventListener('click', (e) => {
+      // Add click listener for type editing on emoji
+      th.querySelector('.type-edit-trigger').addEventListener('click', (e) => {
         e.stopPropagation();
         this.showColumnTypeEditor(index, header, columnType);
       });
@@ -679,10 +683,24 @@ class TableViewer {
       
       let comparison = 0;
       
-      if (columnType === 'numeric') {
-        // Numeric comparison
-        const aNum = parseFloat(String(aVal).replace(/[$,%]/g, '')) || 0;
-        const bNum = parseFloat(String(bVal).replace(/[$,%]/g, '')) || 0;
+      if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
+        // Normalize numeric-like values (handle locale thousands/decimals & currency)
+        const parseNum = (v) => {
+          const str = String(v).trim();
+          if (!str) return 0;
+          // Remove currency symbols & spaces
+            let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
+            // If comma used as decimal (pattern 1.234,56)
+            if (/,\d{1,2}$/.test(cleaned) && /\./.test(cleaned)) {
+              cleaned = cleaned.replace(/\./g,'').replace(',','.');
+            } else {
+              cleaned = cleaned.replace(/,/g,'');
+            }
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        };
+        const aNum = parseNum(aVal);
+        const bNum = parseNum(bVal);
         comparison = aNum - bNum;
       } else {
         // String comparison
@@ -926,6 +944,26 @@ class TableViewer {
       // Chart configuration
       const config = this.createChartConfig(chartType, chartData, xColumn, yColumns);
       
+      // Apply theme-sensitive styling
+      const isDark = (document.body.getAttribute('data-theme') || 'light') === 'dark';
+      const axisColor = isDark ? '#cbd5e0' : '#495057';
+      const gridColor = isDark ? 'rgba(203,213,224,0.15)' : 'rgba(0,0,0,0.1)';
+      const titleColor = isDark ? '#e2e8f0' : '#333';
+      if (!config.options) config.options = {};
+      config.options.plugins = config.options.plugins || {};
+      config.options.plugins.legend = config.options.plugins.legend || {};
+      config.options.plugins.legend.labels = config.options.plugins.legend.labels || {};
+      config.options.plugins.legend.labels.color = axisColor;
+      config.options.plugins.title = config.options.plugins.title || {};
+      if (config.options.plugins.title.display) {
+        config.options.plugins.title.color = titleColor;
+      }
+      if (config.options.scales) {
+        Object.values(config.options.scales).forEach(scale => {
+          if (scale.ticks) scale.ticks.color = axisColor; else scale.ticks = { color: axisColor };
+          if (scale.grid) scale.grid.color = gridColor; else scale.grid = { color: gridColor };
+        });
+      }
       // Create chart
       const chart = new Chart(ctx, config);
       this.charts.set(chartId, chart);
