@@ -18,6 +18,12 @@ try {
 } catch (e) {
   console.error('Failed loading HTML parser tests', e);
 }
+try {
+  const collection5 = require('./columnTypeDetection.test.js');
+  tests = tests.concat(collection5);
+} catch (e) {
+  console.error('Failed loading column type detection tests', e);
+}
 
 let passed = 0;
 let failed = 0;

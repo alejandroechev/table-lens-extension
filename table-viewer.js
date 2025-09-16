@@ -341,155 +341,31 @@ class TableViewer {
   analyzeColumnTypes() {
     if (!this.tableData || this.tableData.length < 2) return;
     
+    // Use the shared column type detection utility
+    this.columnTypes = ColumnTypeUtils.analyzeColumnTypes(this.tableData);
+    
+    // Generate number format inference for numeric columns
     const headers = this.tableData[0];
     const rows = this.tableData.slice(1);
     
-  this.columnTypes = headers.map((header, colIndex) => {
-      // Check header name for specific type keywords
-      const headerName = header.toLowerCase();
-      
-      // Money/Currency detection
-      const moneyKeywords = [
-        'price','cost','amount','salary','wage','revenue','budget','expense','payment','fee','bill','total','subtotal','tax','discount','refund','balance','debt','income','profit','loss',
-        // Spanish / intl synonyms
-        'monto','importe','pago','cargo','cargos','valor','precio','abono','saldo','deposito','retiro'
-      ];
-      const hasMoneyKeyword = moneyKeywords.some(keyword => headerName.includes(keyword));
-      
-      // Percentage detection
-      const percentKeywords = ['percent', 'percentage', 'rate', 'ratio', 'proportion', 'share', 'growth', 'change', 'increase', 'decrease', 'margin', 'roi', 'apy', 'apr', 'tax rate', 'interest'];
-      const hasPercentKeyword = percentKeywords.some(keyword => headerName.includes(keyword)) || headerName.includes('%');
-      
-      // Date detection
-      const dateKeywords = [
-        'date','time','created','updated','modified','birth','start','end','deadline','due','expiry','timestamp','when','day','month','year',
-        // Spanish
-        'fecha','creado','actualizado'
-      ];
-      const hasDateKeyword = dateKeywords.some(keyword => headerName.includes(keyword));
-      
-      // Numeric detection
-      const numericKeywords = ['count', 'sum', 'avg', 'average', 'number', 'value', 'score', 'quantity', 'size', 'weight', 'height', 'width', 'length', 'volume', 'area', 'distance', 'speed', 'temperature'];
-      const hasNumericKeyword = numericKeywords.some(keyword => headerName.includes(keyword));
-      
-      // Analyze actual data values for better detection
-  const sampleSize = Math.min(rows.length, 30); // Sample first 30 rows
-      let moneyCount = 0;
-      let percentCount = 0;
-      let dateCount = 0;
-      let numericCount = 0;
-  const numericSamples = [];
-      
-      for (let i = 0; i < sampleSize; i++) {
-        const raw = rows[i][colIndex];
-        const value = String(raw == null ? '' : raw).trim();
-        if (value === '') continue;
-        
-        // Money pattern detection (extended for locale formats: thousand separators '.', space, comma decimals, currency code suffix/prefix)
-        // Examples to match: "$ 113.100", "$3.408", "1.234,56 €", "EUR 1 234,56", "CLP 12.345", "12.345 CLP"
-        const moneyPatterns = [
-          /^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?\s*[+-]?[\d\.\s,]+\d(?:[,\.]\d{2})?\s*[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?$/, // generic with symbol
-          /^[+-]?[\d\.\s]+(?:,\d{2})?\s*(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)$/i,
-          /^(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)\s+[+-]?[\d\.\s]+(?:,\d{2})?$/i
-        ];
-        if (moneyPatterns.some(r => r.test(value))) {
-          moneyCount++;
-          // Capture numeric portion for format inference
-          numericSamples.push(value);
-        }
-        
-        // Percentage pattern detection
-        else if (/^\d+\.?\d*\s*%$/.test(value) || 
-                 (hasPercentKeyword && /^\d+\.?\d*$/.test(value) && parseFloat(value) <= 100)) {
-          percentCount++;
-        }
-        
-        // Date pattern detection
-        else {
-          const datePatterns = [
-            /^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/ ,          // 12/09/2025 or 12-09-25
-            /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/ ,            // 2025-09-12
-            /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i, // Sep 12 2025
-            /^\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$/i,  // 12 Sep 2025
-            /^\d{1,2}-[A-Za-z]{3}-\d{4}$/ ,                  // 12-Sep-2025
-            /^\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}$/i  // 12 de septiembre de 2025 (basic Spanish)
-          ];
-          if (datePatterns.some(r => r.test(value)) || !isNaN(Date.parse(value))) {
-          dateCount++;
-            continue;
-          }
-          // General numeric detection (strip currency symbols, spaces)
-          const cleaned = value.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
-          if (/^[+-]?[0-9][0-9.,]*$/.test(cleaned)) {
+    this.columnTypes.forEach((type, colIndex) => {
+      if (['numeric','money','percentage'].includes(type)) {
+        // Collect samples for format inference
+        const numericSamples = [];
+        for (let i = 0; i < Math.min(rows.length, 30); i++) {
+          const raw = rows[i][colIndex];
+          const value = String(raw == null ? '' : raw).trim();
+          if (value !== '' && /[\d]/.test(value)) {
             numericSamples.push(value);
           }
-          // Replace thousand separators and normalize decimal (fallback heuristic)
-          const normalized = cleaned.match(/,\d{2}$/) ? cleaned.replace(/\./g,'').replace(',','.') : cleaned.replace(/,/g,'');
-          if (!isNaN(parseFloat(normalized))) {
-            // If it had a currency symbol but patterns failed, still treat as money
-            if (/^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/.test(value)) moneyCount++; else numericCount++;
-          }
         }
-      }
-      
-      const totalValues = sampleSize;
-      const threshold = 0.7; // 70% threshold for type detection
-      
-      // Priority-based type assignment
-      let inferredType = 'categorical';
-      if (moneyCount / totalValues > threshold || hasMoneyKeyword) {
-        inferredType = 'money';
-      } else if (percentCount / totalValues > threshold || hasPercentKeyword) {
-        inferredType = 'percentage';
-      } else if (dateCount / totalValues > threshold || hasDateKeyword) {
-        inferredType = 'date';
-      } else if (numericCount / totalValues > threshold || hasNumericKeyword || /\d/.test(headerName)) {
-        inferredType = 'numeric';
-      }
-      if (['numeric','money','percentage'].includes(inferredType)) {
-        const fmt = this.inferNumberFormat(numericSamples);
-        console.log(`🔍 Column ${colIndex} ("${header}") - Type: ${inferredType}`);
-        console.log(`📊 Samples for inference:`, numericSamples.slice(0, 5));
-        console.log(`🎯 Inferred format:`, fmt);
-        console.log(`💾 Final stored format:`, fmt || { thousand: ',', decimal: '.' });
+        
+        const fmt = ColumnTypeUtils.inferNumberFormat(numericSamples);
         this.numericFormatMap[colIndex] = fmt || { thousand: ',', decimal: '.' };
       }
-      return inferredType;
     });
   }
 
-  inferNumberFormat(samples) {
-    if (!samples || samples.length === 0) return { thousand: ',', decimal: '.' };
-    let dotDecimal = 0, commaDecimal = 0, spaceThousand = 0, dotThousand = 0, commaThousand = 0;
-    for (const raw of samples.slice(0, 60)) {
-      const v = String(raw).trim();
-      const core = v.replace(/[\s\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'');
-      if (/,\d{2}$/.test(core)) commaDecimal++;
-      if (/\.\d{2}$/.test(core)) dotDecimal++;
-      if (/\d\.\d{3}(?:[.,]|$)/.test(core)) dotThousand++;
-      if (/\d,\d{3}(?:[.,]|$)/.test(core)) commaThousand++;
-      if (/\d\s\d{3}(?:[.,]|$)/.test(core)) spaceThousand++;
-    }
-    let thousand = ',';
-    let decimal = '.';
-    const hasDecimalInfo = (dotDecimal + commaDecimal) > 0;
-    if (hasDecimalInfo) {
-      if (commaDecimal > dotDecimal) decimal = ','; else if (dotDecimal > commaDecimal) decimal = '.';
-      const candidates = [];
-      if (dotThousand) candidates.push({sep:'.', count:dotThousand});
-      if (commaThousand) candidates.push({sep:',', count:commaThousand});
-      if (spaceThousand) candidates.push({sep:' ', count:spaceThousand});
-      candidates.sort((a,b)=>b.count-a.count);
-      if (candidates.length) thousand = candidates[0].sep; else thousand = decimal === '.' ? ',' : '.';
-      if (thousand === decimal) thousand = decimal === '.' ? ',' : '.';
-    } else {
-      // No decimal markers -> infer typical locale pairing
-      if (dotThousand > 0 && commaThousand === 0) { thousand = '.'; decimal = ','; }
-      else if (commaThousand > 0 && dotThousand === 0) { thousand = ','; decimal = '.'; }
-      else if (spaceThousand > 0) { thousand = ' '; decimal = ','; }
-    }
-    return { thousand, decimal };
-  }
   
   initializeColumnStats() {
     this.columnStats = this.columnTypes.map(type => {
@@ -781,26 +657,18 @@ class TableViewer {
    * Add filter buttons to table headers
    */
   addHeaderFilterButtons() {
-    console.log('🔧 addHeaderFilterButtons called');
-    console.log('🔧 filteredData:', this.filteredData?.length || 'undefined');
-    
     if (!this.filteredData || this.filteredData.length < 2) {
-      console.log('❌ No filteredData or insufficient rows');
       return;
     }
     
     const tableHeaders = this.elements.dataTable.querySelectorAll('th');
     const headers = this.filteredData[0];
     
-    console.log('🔧 Found table headers:', tableHeaders.length);
-    console.log('🔧 Data headers:', headers);
-    
     tableHeaders.forEach((th, index) => {
       if (index < headers.length) {
         // Remove existing filter button if any
         const existingBtn = th.querySelector('.filter-btn');
         if (existingBtn) {
-          console.log(`🔧 Removing existing filter button for column ${index}`);
           existingBtn.remove();
         }
         
@@ -813,8 +681,6 @@ class TableViewer {
         filterBtn.title = `Filter ${headers[index]} (${typeInfo.description})`;
         filterBtn.setAttribute('data-column', index);
         
-        console.log(`🔧 Creating filter button for column ${index}: "${headers[index]}"`);
-        
         // Position button at the end of header text
         th.style.position = 'relative';
         th.appendChild(filterBtn);
@@ -822,15 +688,10 @@ class TableViewer {
         // Add click handler
         filterBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log(`🔧 Filter button clicked for column ${index}`);
           this.showFilterPopup(index, filterBtn, headers[index], columnType);
         });
-        
-        console.log(`✅ Filter button added to column ${index}`);
       }
     });
-    
-    console.log('🔧 addHeaderFilterButtons completed');
   }
 
   /**
