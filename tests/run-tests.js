@@ -24,6 +24,18 @@ try {
 } catch (e) {
   console.error('Failed loading column type detection tests', e);
 }
+try {
+  const collection6 = require('./nestedTables.test.js');
+  tests = tests.concat(collection6);
+} catch (e) {
+  console.error('Failed loading nested tables tests', e);
+}
+try {
+  const collection7 = require('./nestedTableIntegration.test.js');
+  tests = tests.concat(collection7);
+} catch (e) {
+  console.error('Failed loading nested table integration tests', e);
+}
 
 let passed = 0;
 let failed = 0;

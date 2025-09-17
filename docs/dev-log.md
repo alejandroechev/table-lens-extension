@@ -24,23 +24,39 @@ Added pure utility modules under `utils/` with corresponding tests under `tests/
 
 - `utils/numberFormat.js`: Inference & parsing (locale-aware)
 - `utils/stats.js`: Numeric statistics (population std dev) mirroring TableViewer logic  
-- `utils/columnTypes.js`: **NEW** - Column type detection logic extracted for testability (Rule 1 compliance)
+- `utils/columnTypes.js`: **REFACTORED** - Column type detection logic extracted for testability (Rule 1 compliance)
+- `utils/tableNesting.js`: **NEW** - Enhanced table detection for nested table scenarios with prioritization logic
 - `tests/numberFormat.test.js`: Chilean money detection & parsing
 - `tests/stats.test.js`: Verifies stats calculations (sum, avg, min, max, std, count) for CLP columns
 - `tests/tableCleanup.test.js`: Validates empty row/column removal with 10 test cases including complex table structures
 - `tests/htmlParser.test.js`: Validates HTML table parsing with colspan/rowspan support
 - `tests/columnTypeDetection.test.js`: **REFACTORED** - Now tests actual production code from `utils/columnTypes.js` instead of copied logic
+- `tests/nestedTables.test.js`: **NEW** - Validates nested table detection prioritizing inner data tables over container tables
 - `tests/run-tests.js`: Aggregates and runs all tests (run via `npm test`)
 
-Total test coverage: **18 tests passing** covering number format detection, statistical calculations, table data cleaning, HTML parsing, and **column type detection using production code**.
+Total test coverage: **19 tests passing** covering number format detection, statistical calculations, table data cleaning, HTML parsing, column type detection using production code, and **nested table prioritization**.
 
-These utilities ensure future refactors of in-UI logic (TableViewer) don't silently break numeric parsing, statistical correctness, table processing reliability, or column type detection accuracy.
+These utilities ensure future refactors of in-UI logic (TableViewer) don't silently break numeric parsing, statistical correctness, table processing reliability, column type detection accuracy, or nested table handling logic.
 
 #### Rule 1 Compliance Achievement
 - **Code Testability**: Successfully refactored column type detection logic from inline TableViewer method into standalone `utils/columnTypes.js` utility
 - **Test Validation**: Tests now import and validate the actual production logic via `require('../utils/columnTypes.js')`, ensuring test coverage reflects real application behavior
 - **Dual Export System**: Utility supports both Node.js testing (`module.exports`) and browser usage (`window.ColumnTypeUtils`) for maximum flexibility
 - **Architecture Benefits**: Column type detection logic now reusable across multiple components and fully validated through comprehensive test coverage
+
+#### Nested Table Handling Enhancement
+- **Problem Identified**: Table-within-table structures were incorrectly extracting outer container tables instead of inner data tables
+- **Enhanced Detection Logic**: Created `utils/tableNesting.js` with sophisticated table prioritization algorithm
+  - **Data Density Calculation**: Measures percentage of cells with meaningful content vs empty cells
+  - **Container Detection**: Identifies tables that contain other tables vs actual data tables
+  - **Presentation Table Recognition**: Detects layout/container tables with `role="presentation"` or low data density
+  - **Quality Scoring**: Combines data density with average row content to rank table quality
+- **Prioritization Rules**: 
+  1. Exclude presentation containers unless no better options exist
+  2. Prefer inner tables (non-containers) with good data density 
+  3. Sort by quality score favoring content-rich tables
+- **Integration**: Enhanced detection integrated into `content.js` `detectTables()` method
+- **Test Coverage**: Comprehensive test suite validates nested table scenarios with mock DOM structures
 
 #### Empty Row/Column Removal Feature
 - **Table Data Cleaning**: Implemented automatic removal of empty rows and columns from displayed tables
