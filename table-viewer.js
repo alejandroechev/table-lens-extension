@@ -2397,7 +2397,8 @@ class TableViewer {
       statusElement.style.cssText = `
         position: fixed;
         top: 20px;
-        right: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         padding: 12px 20px;
         border-radius: 6px;
         font-size: 14px;
