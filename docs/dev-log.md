@@ -1,5 +1,22 @@
 #### Recent Development Progress (September 2025)
 
+##### Workspace Name Management & Overwrite Functionality
+- **Workspace Name Display**: Implemented workspace name in header title after save/load operations
+  - **Current Workspace Tracking**: Added `currentWorkspaceName` property to track loaded workspace name
+  - **Title Updates**: Header title shows "💾 {WorkspaceName}" when workspace is saved or loaded
+  - **Transfer Token Integration**: Workspace name preserved when loading from popup across different pages
+  - **State Restoration**: Workspace name properly restored when loading saved states
+- **Save Name Persistence & Overwrite**: Enhanced save dialog with intelligent name handling
+  - **Pre-populate Current Name**: Save dialog automatically fills with current workspace name when available
+  - **Overwrite Detection**: `saveNamedState()` checks for existing workspace names using `findIndex()`
+  - **Overwrite Logic**: Existing workspaces updated in-place, new ones appended to saved states array
+  - **User Feedback**: Console logging shows "Overwriting" vs "Creating new" messages for clarity
+  - **Consistent ID Handling**: Existing workspace IDs preserved during overwrite, new workspaces get timestamp IDs
+- **Enhanced User Experience**: Streamlined workflow for workspace management
+  - **Default Name Generation**: Falls back to timestamp-based names for new workspaces
+  - **Input Selection**: Save dialog automatically selects current name text for quick editing
+  - **Status Messages**: Success messages indicate whether workspace was saved or updated
+
 ##### UI Enhancement: Header Action Buttons
 - **Moved Primary Actions to Header**: Relocated "Create Chart" and "Save Workspace" buttons from data toolbar to main header bar
   - **Better Accessibility**: Primary actions now always visible regardless of active tab

@@ -226,6 +226,8 @@ class TableViewer {
         });
         // After base data render, restore full state
         setTimeout(() => this.restoreFromSavedState(payload.savedState), 150);
+        // Store the workspace name and update title
+        this.currentWorkspaceName = payload.name;
         headerEl && (headerEl.textContent = `💾 ${payload.name}`);
         return; // Done
       } catch (e) {
@@ -2605,9 +2607,16 @@ class TableViewer {
     const nameInput = modal.querySelector('#state-name');
     nameInput.focus();
     
-    // Auto-generate a default name
-    const now = new Date();
-    const defaultName = `Table ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    // Auto-generate a default name or use current workspace name
+    let defaultName;
+    if (this.currentWorkspaceName) {
+      // If we have a current workspace name, use it as default
+      defaultName = this.currentWorkspaceName;
+    } else {
+      // Generate a new default name
+      const now = new Date();
+      defaultName = `Table ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    }
     nameInput.value = defaultName;
     nameInput.select();
     
@@ -2663,9 +2672,12 @@ class TableViewer {
     // Get existing saved states from localStorage
     const savedStates = JSON.parse(localStorage.getItem('tableLensSavedStates') || '[]');
     
-    // Add new state
+    // Check if a state with this name already exists
+    const existingIndex = savedStates.findIndex(state => state.name === stateName);
+    
+    // Create new state object
     const newState = {
-      id: Date.now().toString(),
+      id: existingIndex !== -1 ? savedStates[existingIndex].id : Date.now().toString(),
       name: stateName,
       timestamp: new Date().toISOString(),
       state: currentState,
@@ -2673,7 +2685,21 @@ class TableViewer {
       url: window.location.href
     };
     
-    savedStates.push(newState);
+    if (existingIndex !== -1) {
+      // Overwrite existing state
+      savedStates[existingIndex] = newState;
+      console.log(`💾 Overwriting existing workspace "${stateName}"`);
+    } else {
+      // Add new state
+      savedStates.push(newState);
+      console.log(`💾 Creating new workspace "${stateName}"`);
+    }
+    
+    // Update current workspace name
+    this.currentWorkspaceName = stateName;
+    
+    // Update title to show current workspace name
+    this.elements.headerTitle.textContent = `💾 ${stateName}`;
     
     // Keep only last 50 states to avoid storage bloat
     if (savedStates.length > 50) {
@@ -2695,7 +2721,7 @@ class TableViewer {
     // Notify popup (if open) to refresh saved states list
     try { chrome.runtime?.sendMessage({ action: 'refreshSavedStates'}); } catch(_) {}
     
-    console.log(`💾 Named state "${stateName}" saved with ${savedStates.length} total saved states`);
+    console.log(`💾 Named state "${stateName}" ${existingIndex !== -1 ? 'updated' : 'saved'} with ${savedStates.length} total saved states`);
   }
 
   /**
@@ -2714,8 +2740,12 @@ class TableViewer {
       if (restored) {
         console.log('✅ Successfully restored from saved state');
         
-        // Update the header to show this is a loaded state
-        this.elements.headerTitle.textContent = '💾 Saved State Loaded';
+        // Update the header to show workspace name if available
+        if (this.currentWorkspaceName) {
+          this.elements.headerTitle.textContent = `💾 ${this.currentWorkspaceName}`;
+        } else {
+          this.elements.headerTitle.textContent = '💾 Saved Workspace Loaded';
+        }
         
         // Re-render everything
         this.renderDataTable();
@@ -2725,7 +2755,7 @@ class TableViewer {
         setTimeout(() => this.restoreAdvancedState(savedState), 300);
         
         // Show a success message
-        this.showGlobalStatus('✅ Saved state loaded successfully!', 'success');
+        this.showGlobalStatus('✅ Saved workspace loaded successfully!', 'success');
       } else {
         console.error('Failed to apply saved state');
         this.showGlobalStatus('❌ Failed to restore saved state', 'error');

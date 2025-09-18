@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Workspace Features</title>
+    <style>
+        body { font-family: system-ui; margin: 20px; }
+        .test-section { border: 1px solid #ddd; padding: 15px; margin: 15px 0; }
+        .test-table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .test-table th, .test-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        .instructions { background: #f0f8ff; padding: 10px; border-radius: 4px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .info { background: #cce7ff; color: #004085; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Workspace Features</h1>
+    
+    <div class="instructions">
+        <h3>📋 Testing Instructions</h3>
+        <p>This page tests the completed workspace management features:</p>
+        <ol>
+            <li><strong>Workspace Name in Title</strong>: After saving or loading, title should show workspace name</li>
+            <li><strong>Save Name Persistence</strong>: Save dialog should pre-populate with current workspace name</li>
+            <li><strong>Overwrite Functionality</strong>: Using same name should overwrite existing workspace</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Sample Data Table</h3>
+        <p>Use this table to test the workspace features.</p>
+        
+        <table class="test-table" id="sampleTable">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Sales Q1</th>
+                    <th>Sales Q2</th>
+                    <th>Sales Q3</th>
+                    <th>Sales Q4</th>
+                    <th>Growth Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Widget A</td>
+                    <td>15000</td>
+                    <td>18000</td>
+                    <td>22000</td>
+                    <td>25000</td>
+                    <td>12.5%</td>
+                </tr>
+                <tr>
+                    <td>Widget B</td>
+                    <td>8500</td>
+                    <td>9200</td>
+                    <td>11000</td>
+                    <td>13500</td>
+                    <td>15.8%</td>
+                </tr>
+                <tr>
+                    <td>Widget C</td>
+                    <td>12000</td>
+                    <td>14000</td>
+                    <td>16500</td>
+                    <td>19000</td>
+                    <td>18.2%</td>
+                </tr>
+                <tr>
+                    <td>Widget D</td>
+                    <td>6000</td>
+                    <td>7500</td>
+                    <td>8200</td>
+                    <td>9800</td>
+                    <td>22.1%</td>
+                </tr>
+                <tr>
+                    <td>Widget E</td>
+                    <td>20000</td>
+                    <td>24000</td>
+                    <td>28500</td>
+                    <td>32000</td>
+                    <td>16.7%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Test Steps</h3>
+        <div class="status info">
+            <strong>Step 1</strong>: Open table in viewer, create a chart or apply some filters
+        </div>
+        <div class="status info">
+            <strong>Step 2</strong>: Click "Save Workspace" - should show blank name input for new workspace
+        </div>
+        <div class="status info">
+            <strong>Step 3</strong>: Save with name "Test Workspace" - title should update to show "💾 Test Workspace"
+        </div>
+        <div class="status info">
+            <strong>Step 4</strong>: Make some changes, then click "Save Workspace" again
+        </div>
+        <div class="status success">
+            <strong>Expected</strong>: Dialog should pre-populate with "Test Workspace" name
+        </div>
+        <div class="status success">
+            <strong>Expected</strong>: Using same name should overwrite, showing "Updated" message
+        </div>
+        <div class="status info">
+            <strong>Step 5</strong>: Load workspace from popup - title should show workspace name when loaded
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>✅ Features Implemented</h3>
+        <ul>
+            <li>✅ <strong>currentWorkspaceName</strong> property tracks loaded workspace</li>
+            <li>✅ <strong>Title Display</strong>: headerTitle updated with workspace name after save/load</li>
+            <li>✅ <strong>Save Name Persistence</strong>: showSaveStateDialog pre-populates with currentWorkspaceName</li>
+            <li>✅ <strong>Overwrite Logic</strong>: saveNamedState checks for existing name and overwrites</li>
+            <li>✅ <strong>Transfer Token Loading</strong>: Sets currentWorkspaceName when loading from popup</li>
+            <li>✅ <strong>Restore State Loading</strong>: Updates title when restoring saved state</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 Code Implementation Summary</h3>
+        <p><strong>Key Changes Made:</strong></p>
+        <ul>
+            <li>Added <code>currentWorkspaceName</code> property to TableViewer class</li>
+            <li>Updated transfer token loading to set workspace name from payload</li>
+            <li>Modified <code>saveNamedState()</code> to include overwrite logic with existingIndex check</li>
+            <li>Enhanced <code>showSaveStateDialog()</code> to pre-populate current workspace name</li>
+            <li>Updated <code>restoreFromSavedState()</code> to display workspace name in title</li>
+            <li>Added proper title updates throughout the workflow</li>
+        </ul>
+    </div>
+</body>
+</html>
