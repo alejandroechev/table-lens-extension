@@ -86,8 +86,13 @@ class TableParser {
             if (!grid[targetRow]) grid[targetRow] = new Array(maxCols).fill('');
             
             if (targetRow < grid.length && targetCol < maxCols) {
-              // Only put content in the first cell of a colspan/rowspan
-              grid[targetRow][targetCol] = (r === 0 && c === 0) ? cellData.content : '';
+              // For rowspan: repeat content in all spanned rows
+              // For colspan: only put content in the first column
+              if (c === 0) {
+                grid[targetRow][targetCol] = cellData.content;
+              } else {
+                grid[targetRow][targetCol] = '';
+              }
             }
           }
         }

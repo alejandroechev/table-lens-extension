@@ -19,6 +19,28 @@
   - Solution: Added special handling in `processChartData()` method for scatter plots to format data as coordinate pairs
   - Both X and Y values now properly parsed as numeric values using `parseNumericValue()` method
   - X-axis now automatically scales to the actual data range from selected column
+- **Chart Export Fix**: Fixed PNG and SVG chart export buttons that were showing JavaScript errors when clicked
+  - Root cause: `tableViewer` variable was declared in local scope but HTML buttons used `onclick="tableViewer.exportChart()"`
+  - Solution: Made `tableViewer` globally accessible by assigning to `window.tableViewer` during initialization
+  - PNG export uses Chart.js built-in `toBase64Image()` method for high-quality bitmap output
+  - SVG export converts canvas to SVG format with embedded PNG data for vector compatibility
+
+#### Enhanced Rowspan and Colspan Table Handling
+- **Comprehensive Span Attribute Support**: Implemented proper rowspan and colspan handling in HTML table parser
+  - **Rowspan Fix**: Modified `parseHTMLTable` in `content.js` to repeat cell content across all spanned rows instead of leaving them empty
+  - **Colspan Support**: Enhanced existing colspan logic to properly handle column spanning with empty cells in additional columns
+  - **Consistent Row Structure**: All parsed rows now maintain consistent column counts regardless of span attributes
+  - **Test Coverage**: Added comprehensive test suite covering both rowspan and colspan scenarios
+    - `tests/rowspanHandling.test.js`: Tennis champions table with complex rowspan patterns
+    - `tests/colspanHandling.test.js`: Student scores table with colspan spanning headers and data
+  - **Production Integration**: Updated `utils/tableNesting.js` to include the enhanced parsing logic for Node.js testing
+- **Root Cause Analysis**: Previous implementation set spanned cells to empty strings, causing inconsistent CSV output with missing data
+- **Solution Benefits**:
+  - ✅ Rowspan cells properly repeat their values in all affected rows
+  - ✅ Colspan cells fill additional columns with appropriate empty values  
+  - ✅ All table rows maintain consistent column structure
+  - ✅ CSV exports include complete data from complex table layouts
+  - ✅ Comprehensive test validation ensures reliability
 
 #### Table State Persistence System
 - **Session Storage Integration**: Complete state management system for table viewer sessions

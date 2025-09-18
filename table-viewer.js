@@ -2622,6 +2622,8 @@ class TableViewer {
 let tableViewer;
 document.addEventListener('DOMContentLoaded', () => {
   tableViewer = new TableViewer();
+  // Make tableViewer globally accessible for chart export buttons
+  window.tableViewer = tableViewer;
 });
 
 // Handle page cleanup

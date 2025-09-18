@@ -51,6 +51,30 @@ try {
 } catch (e) {
   console.error('Failed loading table state tests', e);
 }
+try {
+  const rowspanTestModule = require('./rowspanHandling.test.js');
+  tests.push({
+    name: 'Rowspan Handling - Tennis Champions Table',
+    fn: () => {
+      const result = rowspanTestModule.testRowspanHandling();
+      if (!result) throw new Error('Rowspan handling test failed');
+    }
+  });
+} catch (e) {
+  console.error('Failed loading rowspan handling tests', e);
+}
+try {
+  const colspanTestModule = require('./colspanHandling.test.js');
+  tests.push({
+    name: 'Colspan Handling - Student Scores Table',
+    fn: () => {
+      const result = colspanTestModule.testColspanHandling();
+      if (!result) throw new Error('Colspan handling test failed');
+    }
+  });
+} catch (e) {
+  console.error('Failed loading colspan handling tests', e);
+}
 
 let passed = 0;
 let failed = 0;
