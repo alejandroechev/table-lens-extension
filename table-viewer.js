@@ -11,8 +11,7 @@ class TableViewer {
     this.chartCounter = 0;
     this.numericFormatMap = {}; // columnIndex -> { thousand: ',', decimal: '.' }
     this.stateManager = null; // Will be initialized when table data is loaded
-  this.stateRestored = false; // Flag to track if state has been restored
-  this.savedFilters = {}; // Persisted filters per column
+    this.savedFilters = {}; // Persisted filters per column
     
     // Define chart type requirements
     this.chartTypeDefinitions = {
@@ -141,7 +140,8 @@ class TableViewer {
       filterValue: document.getElementById('filterValue'),
       resetFiltersAndSort: document.getElementById('resetFiltersAndSort'),
       exportCSV: document.getElementById('exportCSV'),
-      exportTSV: document.getElementById('exportTSV')
+      exportTSV: document.getElementById('exportTSV'),
+      saveState: document.getElementById('saveStateBtn')
     };
     
     // Initialize theme
@@ -158,6 +158,11 @@ class TableViewer {
     }
     if (this.elements.exportTSV) {
       this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    }
+    
+  // Save button
+    if (this.elements.saveState) {
+      this.elements.saveState.addEventListener('click', () => this.showSaveStateDialog());
     }
     
     // Note: Filter event listeners are attached in attachFilterEventListeners()
@@ -181,6 +186,9 @@ class TableViewer {
       if (event.data.type === 'TABLE_DATA') {
         console.log('Received table data:', event.data);
         this.handleTableData(event.data);
+      } else if (event.data.type === 'RESTORE_SAVED_STATE') {
+        console.log('Received saved state to restore:', event.data);
+        this.restoreFromSavedState(event.data.savedState);
       }
     });
   }
@@ -211,39 +219,19 @@ class TableViewer {
     this.originalData = [...this.tableData]; // Store original order
     this.filteredData = [...this.tableData];
     
-    // Initialize state manager with table ID
+    // Initialize state manager with table ID (but don't auto-restore)
     const tableId = this.generateTableId();
     this.stateManager = new TableStateManager(tableId);
     
-    // Try to load saved state
-    const savedState = this.stateManager.loadState();
-    
-    if (savedState) {
-      // Apply saved state
-      const stateApplied = this.stateManager.applyState(this, savedState);
-      if (stateApplied) {
-        this.stateRestored = true;
-        console.log(`🔄 Restored table state for ${tableId}`);
-      }
-    }
-    
-    // If no state was restored, analyze column types normally
-    if (!this.stateRestored) {
-      this.analyzeColumnTypes();
-      this.initializeColumnStats();
-    }
+    // Always analyze column types normally (no automatic restoration)
+    this.analyzeColumnTypes();
+    this.initializeColumnStats();
     
     this.updateHeader();
     this.renderDataTable();
     this.setupDataControls();
     
-    // Restore advanced state after initial render
-    if (savedState && this.stateRestored) {
-      setTimeout(() => this.restoreAdvancedState(savedState), 200);
-    }
-    
-    // Auto-save state when changes are made
-    this.setupAutoSave();
+    // No automatic state restoration - only when explicitly loading saved workspace
   }
 
   /**
@@ -582,7 +570,6 @@ class TableViewer {
         this.numericFormatMap[columnIndex] = { thousand: safeThousand, decimal: safeDecimal };
       }
       this.renderDataTable();
-      this.saveState?.();
     }
     modal.remove();
   }
@@ -673,8 +660,7 @@ class TableViewer {
       this.addHeaderFilterButtons();
       this.updateAllFilterButtonStates();
     }, 100);
-    // Persist state after render to capture any structural changes
-    this.saveState?.();
+    // Note: Manual save required to persist structural changes
   }
   
   setupDataControls() {
@@ -828,8 +814,7 @@ class TableViewer {
       
       this.activeFilterPopup.remove();
       this.activeFilterPopup = null;
-      // Save state after closing popup (filters may have changed)
-      this.saveState?.();
+      // Note: Manual save required to persist filter changes
     }
   }
 
@@ -891,12 +876,12 @@ class TableViewer {
         const minEl = popup.querySelector('.filter-min');
         const maxEl = popup.querySelector('.filter-max');
         if (minEl?.value) f.min = minEl.value; if (maxEl?.value) f.max = maxEl.value;
-        if (!f.min && !f.max) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+        if (!f.min && !f.max) { delete this.savedFilters[columnIndex]; return; }
       } else if (type === 'date') {
         const fromEl = popup.querySelector('.filter-date-from');
         const toEl = popup.querySelector('.filter-date-to');
         if (fromEl?.value) f.from = fromEl.value; if (toEl?.value) f.to = toEl.value;
-        if (!f.from && !f.to) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+        if (!f.from && !f.to) { delete this.savedFilters[columnIndex]; return; }
       } else if (type === 'categorical') {
         const sel = popup.querySelector('.filter-select');
         const txt = popup.querySelector('.filter-text');
@@ -905,10 +890,9 @@ class TableViewer {
           if (selected.length) f.selected = selected;
         }
         if (txt?.value.trim()) f.text = txt.value.trim();
-        if (!f.selected && !f.text) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+        if (!f.selected && !f.text) { delete this.savedFilters[columnIndex]; return; }
       }
       this.savedFilters[columnIndex] = f;
-      this.saveState?.();
     } catch(e) { console.debug('captureFilterState error', e); }
   }
 
@@ -1305,7 +1289,6 @@ class TableViewer {
     } else {
       this.renderDataTable();
     }
-    this.saveState?.();
   }
 
   rowPassesSavedFilter(row, columnIndex) {
@@ -1352,7 +1335,6 @@ class TableViewer {
     this.filteredData = [...this.originalData];
     this.savedFilters = {};
     this.renderDataTable();
-    this.saveState?.();
   }
   
   /**
@@ -1372,7 +1354,6 @@ class TableViewer {
     // Reapply filters and remove saved state
     delete this.savedFilters[columnIndex];
     this.applyColumnFilters();
-    this.saveState?.();
   }
 
   updateColumnStat(columnIndex, statFunction) {
@@ -1580,9 +1561,6 @@ class TableViewer {
     
     // Initialize chart controls
     this.initializeChartControls(chartId);
-    
-    // Save state after creating chart
-    this.saveState();
   }
   
   createChartPanelHTML(chartId, chartName) {
@@ -1836,8 +1814,6 @@ class TableViewer {
     
     // Initial validation
     validateInputs();
-    // Save any auto-selected defaults
-    this.saveState?.();
   }
 
   autoSelectSmartDefaults(chartId, chartType) {
@@ -1927,8 +1903,6 @@ class TableViewer {
     this.clearAllFilters();
     // Reset sorting
     this.resetSort();
-    // Save the cleared state
-    this.saveState();
   }
   
   generateChart(chartId) {
@@ -2346,9 +2320,6 @@ class TableViewer {
     if (tab && tab.classList.contains('active')) {
       this.switchTab('data');
     }
-    
-    // Save state after closing chart
-    this.saveState();
   }
   
   showStatus(chartId, message, type) {
@@ -2548,63 +2519,169 @@ class TableViewer {
   }
   
   /**
-   * Setup auto-save functionality
-   */
-  setupAutoSave() {
-    // Auto-save on various actions with debouncing
-    let saveTimeout = null;
-    const debouncedSave = () => {
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => this.saveState(), 1000);
-    };
-    
-    // Save state when significant changes occur
-    const originalSortTable = this.sortTable.bind(this);
-    this.sortTable = (...args) => {
-      const result = originalSortTable(...args);
-      debouncedSave();
-      return result;
-    };
-    
-    const originalApplyColumnFilters = this.applyColumnFilters.bind(this);
-    this.applyColumnFilters = (...args) => {
-      const result = originalApplyColumnFilters(...args);
-      debouncedSave();
-      return result;
-    };
-    
-    const originalUpdateColumnStat = this.updateColumnStat.bind(this);
-    this.updateColumnStat = (...args) => {
-      const result = originalUpdateColumnStat(...args);
-      debouncedSave();
-      return result;
-    };
-    
-    const originalApplyColumnTypeChange = this.applyColumnTypeChange.bind(this);
-    this.applyColumnTypeChange = (...args) => {
-      const result = originalApplyColumnTypeChange(...args);
-      debouncedSave();
-      return result;
-    };
-    
-    // Save state when switching tabs
-    const originalSwitchTab = this.switchTab.bind(this);
-    this.switchTab = (...args) => {
-      const result = originalSwitchTab(...args);
-      this.saveState();
-      return result;
-    };
-    
-    // Save state before window closes
-    window.addEventListener('beforeunload', () => this.saveState());
-  }
-  
-  /**
-   * Save current state to session storage
+   * Manually save current state to session storage
    */
   saveState() {
     if (this.stateManager && this.tableData) {
       this.stateManager.saveState(this);
+      console.log('💾 Table state saved');
+    }
+  }
+
+  /**
+  * Show dialog to save current table & charts with a name
+   */
+  showSaveStateDialog() {
+    const modal = document.createElement('div');
+    modal.className = 'save-state-modal';
+    modal.innerHTML = `
+      <div class="save-state-content" role="dialog" aria-modal="true">
+  <h3>💾 Save</h3>
+        <div class="form-group">
+          <label for="state-name">State Name:</label>
+          <input type="text" id="state-name" class="form-control" placeholder="My table configuration" maxlength="50">
+          <div class="save-hint">Give your saved state a meaningful name</div>
+        </div>
+        <div class="save-state-actions">
+          <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn btn-success" data-action="save">Save</button>
+        </div>
+      </div>`;
+    
+    document.body.appendChild(modal);
+    
+    // Focus the input
+    const nameInput = modal.querySelector('#state-name');
+    nameInput.focus();
+    
+    // Auto-generate a default name
+    const now = new Date();
+    const defaultName = `Table ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    nameInput.value = defaultName;
+    nameInput.select();
+    
+    // Add event handlers
+    const cancelBtn = modal.querySelector('[data-action="cancel"]');
+    const saveBtn = modal.querySelector('[data-action="save"]');
+    
+    cancelBtn.addEventListener('click', () => modal.remove());
+    
+    saveBtn.addEventListener('click', () => {
+      const stateName = nameInput.value.trim();
+      if (stateName) {
+        this.saveNamedState(stateName);
+        modal.remove();
+      } else {
+        nameInput.focus();
+        nameInput.classList.add('error');
+        setTimeout(() => nameInput.classList.remove('error'), 2000);
+      }
+    });
+    
+    // Handle Enter key
+    nameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        saveBtn.click();
+      }
+    });
+    
+    // Close on escape
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        modal.remove();
+      }
+    });
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  /**
+   * Save state with a specific name
+   */
+  saveNamedState(stateName) {
+    if (!this.stateManager || !this.tableData) return;
+    
+    // Generate full snapshot including table & charts
+    const currentState = this.stateManager.generateState(this);
+    
+    // Get existing saved states from localStorage
+    const savedStates = JSON.parse(localStorage.getItem('tableLensSavedStates') || '[]');
+    
+    // Add new state
+    const newState = {
+      id: Date.now().toString(),
+      name: stateName,
+      timestamp: new Date().toISOString(),
+      state: currentState,
+      tableFingerprint: currentState.dataFingerprint,
+      url: window.location.href
+    };
+    
+    savedStates.push(newState);
+    
+    // Keep only last 50 states to avoid storage bloat
+    if (savedStates.length > 50) {
+      savedStates.splice(0, savedStates.length - 50);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('tableLensSavedStates', JSON.stringify(savedStates));
+    
+    // Show success message & subtle flash on button
+    this.showGlobalStatus(`✅ Saved "${stateName}"`, 'success');
+    const btn = this.elements.saveState;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '✔ Saved';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Save'; }, 1200);
+    }
+
+    // Notify popup (if open) to refresh saved states list
+    try { chrome.runtime?.sendMessage({ action: 'refreshSavedStates'}); } catch(_) {}
+    
+    console.log(`💾 Named state "${stateName}" saved with ${savedStates.length} total saved states`);
+  }
+
+  /**
+   * Restore table viewer from a saved state
+   */
+  restoreFromSavedState(savedState) {
+    if (!savedState || !this.stateManager) {
+      console.error('Cannot restore: invalid saved state or no state manager');
+      return;
+    }
+
+    try {
+      // Apply the saved state using the state manager
+      const restored = this.stateManager.applyState(this, savedState);
+      
+      if (restored) {
+        console.log('✅ Successfully restored from saved state');
+        
+        // Update the header to show this is a loaded state
+        this.elements.headerTitle.textContent = '💾 Saved State Loaded';
+        
+        // Re-render everything
+        this.renderDataTable();
+        this.setupDataControls();
+        
+        // Restore charts and advanced state
+        setTimeout(() => this.restoreAdvancedState(savedState), 300);
+        
+        // Show a success message
+        this.showGlobalStatus('✅ Saved state loaded successfully!', 'success');
+      } else {
+        console.error('Failed to apply saved state');
+        this.showGlobalStatus('❌ Failed to restore saved state', 'error');
+      }
+    } catch (error) {
+      console.error('Error restoring saved state:', error);
+      this.showGlobalStatus('❌ Error loading saved state', 'error');
     }
   }
   

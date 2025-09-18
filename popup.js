@@ -9,7 +9,9 @@ class PopupController {
     this.initializeElements();
     this.attachEventListeners();
     // Removed automatic table scanning - now done via Extract All Tables button
-    this.restoreExistingTables();
+  this.restoreExistingTables();
+  this.loadSavedStates();
+  this.initializeSavedStateListener();
   }
   
   initializeElements() {
@@ -23,8 +25,9 @@ class PopupController {
       yColumns: document.getElementById('yColumns'),
       scanTables: document.getElementById('scanTables'),
       ocrCapture: document.getElementById('ocrCapture'),
-	imageCapture: document.getElementById('imageCapture'),
-	allTables: document.getElementById('allTables'),
+      imageCapture: document.getElementById('imageCapture'),
+      allTables: document.getElementById('allTables'),
+      savedStatesList: document.getElementById('savedStatesList'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
       exportSVG: document.getElementById('exportSVG'),
@@ -35,9 +38,9 @@ class PopupController {
     this.initializeTheme();
   }  attachEventListeners() {
     this.elements.scanTables.addEventListener('click', () => this.scanForTables());
-	this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
-	this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
-	this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
+    this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
+    this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
+    this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
     this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     if (this.elements.tableSearch) {
       this.elements.tableSearch.addEventListener('input', () => this.renderTableList());
@@ -742,6 +745,171 @@ class PopupController {
   
   hideStatus() {
     this.elements.status.style.display = 'none';
+  }
+  
+  // Clear all stored tables for the current page
+  /**
+   * Load and display saved states
+   */
+  loadSavedStates() {
+    try {
+      const savedStates = JSON.parse(localStorage.getItem('tableLensSavedStates') || '[]');
+      this.renderSavedStates(savedStates);
+    } catch (error) {
+      console.error('Error loading saved states:', error);
+      this.renderSavedStates([]);
+    }
+  }
+
+  /** Listen for refresh requests from viewer */
+  initializeSavedStateListener() {
+    try {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg && msg.action === 'refreshSavedStates') {
+          this.loadSavedStates();
+        }
+      });
+    } catch(_) {}
+  }
+
+  /**
+   * Render saved states list
+   */
+  renderSavedStates(savedStates) {
+    if (!this.elements.savedStatesList) return;
+
+    if (savedStates.length === 0) {
+      this.elements.savedStatesList.innerHTML = `
+        <div class="no-saved-states">
+          <p>No saved table states yet</p>
+          <p class="hint">Open a table in the viewer and click "💾 Save State" to save configurations</p>
+        </div>`;
+      return;
+    }
+
+    // Sort by timestamp (newest first)
+    const sortedStates = [...savedStates].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    this.elements.savedStatesList.innerHTML = sortedStates.map(state => {
+      const date = new Date(state.timestamp);
+      const timeString = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      return `
+        <div class="saved-state-item" data-state-id="${state.id}">
+          <div class="saved-state-header">
+            <div class="saved-state-name">${this.escapeHtml(state.name)}</div>
+            <div class="saved-state-timestamp">${timeString}</div>
+          </div>
+          <div class="saved-state-actions">
+            <button class="saved-state-btn saved-state-load" data-action="load" data-state-id="${state.id}">Load</button>
+            <button class="saved-state-btn saved-state-delete" data-action="delete" data-state-id="${state.id}">Delete</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Attach event listeners for saved state actions
+    this.attachSavedStateListeners();
+  }
+
+  /**
+   * Attach event listeners for saved state actions
+   */
+  attachSavedStateListeners() {
+    if (!this.elements.savedStatesList) return;
+
+    this.elements.savedStatesList.addEventListener('click', async (e) => {
+      const action = e.target.getAttribute('data-action');
+      const stateId = e.target.getAttribute('data-state-id');
+
+      if (!action || !stateId) return;
+
+      if (action === 'load') {
+        await this.loadSavedState(stateId);
+      } else if (action === 'delete') {
+        this.deleteSavedState(stateId);
+      }
+    });
+  }
+
+  /**
+   * Load a saved state
+   */
+  async loadSavedState(stateId) {
+    try {
+      const savedStates = JSON.parse(localStorage.getItem('tableLensSavedStates') || '[]');
+      const state = savedStates.find(s => s.id === stateId);
+      
+      if (!state) {
+        this.showStatus('Saved state not found', 'error');
+        return;
+      }
+
+      // Get current tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) {
+        this.showStatus('Unable to access current tab', 'error');
+        return;
+      }
+
+      // Send the saved state to be loaded
+      const response = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'loadSavedState',
+        savedState: state
+      });
+
+      if (response && response.success) {
+        this.showStatus(`✅ Loaded state "${state.name}"`, 'success');
+        setTimeout(() => this.hideStatus(), 3000);
+        // Close popup after successful load
+        window.close();
+      } else {
+        this.showStatus('Failed to load saved state', 'error');
+        setTimeout(() => this.hideStatus(), 3000);
+      }
+    } catch (error) {
+      console.error('Error loading saved state:', error);
+      this.showStatus('Error loading saved state', 'error');
+      setTimeout(() => this.hideStatus(), 3000);
+    }
+  }
+
+  /**
+   * Delete a saved state
+   */
+  deleteSavedState(stateId) {
+    try {
+      const savedStates = JSON.parse(localStorage.getItem('tableLensSavedStates') || '[]');
+      const stateIndex = savedStates.findIndex(s => s.id === stateId);
+      
+      if (stateIndex === -1) {
+        this.showStatus('Saved state not found', 'error');
+        return;
+      }
+
+      const stateName = savedStates[stateIndex].name;
+      savedStates.splice(stateIndex, 1);
+      
+      localStorage.setItem('tableLensSavedStates', JSON.stringify(savedStates));
+      
+      // Re-render the list
+      this.renderSavedStates(savedStates);
+      
+      this.showStatus(`🗑️ Deleted state "${stateName}"`, 'success');
+      setTimeout(() => this.hideStatus(), 2000);
+    } catch (error) {
+      console.error('Error deleting saved state:', error);
+      this.showStatus('Error deleting saved state', 'error');
+      setTimeout(() => this.hideStatus(), 3000);
+    }
+  }
+
+  /**
+   * Escape HTML to prevent XSS
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
   
   // Theme management methods

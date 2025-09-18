@@ -1,5 +1,39 @@
 #### Recent Development Progress (September 2025)
 
+#### Save Functionality & Chart Auto-Loading Fixes
+- **Fixed Save Button**: Corrected HTML/JS mismatch where button had `id="saveStateBtn"` but code looked for `getElementById('saveState')`
+- **Removed Automatic Chart Loading**: Eliminated automatic state restoration that was loading charts on every table open
+  - **Previous Issue**: Charts were auto-loading from localStorage even for new tables, causing confusion
+  - **Solution**: Removed `loadState()` and `restoreAdvancedState()` calls from `handleTableData()` 
+  - **New Behavior**: Charts only restore when explicitly loading a saved workspace from popup
+  - **Clean Startup**: Tables now start fresh without any automatic state interference
+- **Explicit-Only Restoration**: Charts, filters, and configurations only restore when user clicks "Load" on saved state
+- **Improved User Control**: Users see exactly what they expect - fresh tables start clean, saved states load completely
+
+#### Explicit State Management System
+- **Architecture Overhaul**: Replaced automatic state saving with user-controlled explicit saving system
+  - **Removed Automatic Saving**: Eliminated `setupAutoSave()` method and all automatic `saveState()` calls throughout table-viewer.js
+  - **Manual Save Button**: Added "💾 Save State" button to table viewer toolbar with green success styling (btn-success)
+  - **Named State Storage**: Implemented named state saving with user-provided names and timestamps
+  - **Cross-Page Loading**: Saved states can be loaded from any page, not just the original table page
+  - **Enhanced State Management**: Saved states stored in localStorage with metadata (name, timestamp, fingerprint, URL)
+- **UI Components**:
+  - **Save Dialog Modal**: Custom modal for naming saved states with auto-generated defaults, validation, and keyboard shortcuts
+  - **Popup Saved States Section**: Replaced "Clear Stored Tables" with "💾 Saved States" section showing all saved configurations
+  - **Load/Delete Actions**: Each saved state shows Load and Delete buttons with appropriate styling and confirmation
+- **Technical Implementation**:
+  - **State Persistence**: Uses `tableLensSavedStates` localStorage key with 50-state limit to prevent storage bloat
+  - **Message Passing**: Enhanced content script to handle `loadSavedState` messages and open table viewer with restored state
+  - **State Restoration**: Added `restoreFromSavedState()` method to reconstruct complete table viewer state including filters, charts, and column types
+  - **Data Security**: Includes HTML escaping and XSS prevention for user-provided state names
+- **User Benefits**:
+  - ✅ Full control over when and what gets saved
+  - ✅ Meaningful names for different table configurations  
+  - ✅ Ability to load any saved state from any page
+  - ✅ No more unexpected state changes from data modifications
+  - ✅ Clean separation between temporary and persistent state
+- **Backward Compatibility**: Maintains existing state structure and restoration logic, only removes automatic triggers
+
 #### Compact Data Toolbar Enhancement
 - **Streamlined UI Design**: Redesigned the table viewer toolbar for better space efficiency and user experience
   - **Compact Height**: Reduced toolbar height from 15px padding to 8px padding for more screen real estate
@@ -41,6 +75,25 @@
   - ✅ All table rows maintain consistent column structure
   - ✅ CSV exports include complete data from complex table layouts
   - ✅ Comprehensive test validation ensures reliability
+
+#### Clear Stored Tables Feature
+- **User-Requested Data Management**: Added ability to clear all stored tables for the current page from extension popup
+  - **New UI Button**: Added "🗑️ Clear Stored Tables" button to main popup interface with danger styling (red background)
+  - **Compact Design**: Button uses `btn-danger btn-small` classes for visual distinction and space efficiency
+  - **Message Communication**: Implements Chrome extension message passing between popup and content script
+  - **Complete Cleanup**: Clears both content script storage (`tableDetector.tables`) and popup cache (`this.tables`, `this.tableSearchCache`)
+  - **Persistent State Clearing**: **Enhanced to clear saved table state from localStorage and sessionStorage**
+    - Iterates through all table IDs and removes corresponding `tableLens_state_${tableId}` entries
+    - Handles both localStorage (primary) and sessionStorage (fallback) storage locations
+    - Provides detailed feedback showing number of tables and state entries cleared
+  - **User Feedback**: Enhanced status messages with counts of cleared tables and states
+  - **Error Handling**: Graceful handling of tab access errors, storage access issues, and communication failures
+- **Implementation Details**:
+  - `popup.html`: Added clear button to table-actions section
+  - `popup.css`: Added `.btn-danger` and `.btn-small` styling classes
+  - `popup.js`: Enhanced `clearStoredTables()` method with detailed feedback and error handling
+  - `content.js`: Enhanced `clearAllTables` handler to clear both memory and persistent storage with comprehensive logging
+- **User Benefits**: Users can now completely reset their table extraction and analysis session, removing all traces of table data and saved states from browser storage
 
 #### Table State Persistence System
 - **Session Storage Integration**: Complete state management system for table viewer sessions

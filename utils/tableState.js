@@ -28,41 +28,49 @@ class TableStateManager {
   }
 
   /**
+   * Build a full state snapshot (without persisting) so callers can decide how to store it.
+   * Includes tableData for portable named saves (cross-page loading) – not stored in the
+   * lightweight auto state previously.
+   */
+  generateState(tableViewer) {
+    if (!tableViewer) return null;
+    try {
+      return {
+        tableId: this.tableId,
+        timestamp: Date.now(),
+        // Core table structure
+        tableData: Array.isArray(tableViewer.tableData) ? tableViewer.tableData.map(r => [...r]) : [],
+        // Column configuration
+        columnTypes: [...(tableViewer.columnTypes || [])],
+        columnStats: [...(tableViewer.columnStats || [])],
+        numericFormatMap: { ...(tableViewer.numericFormatMap || {}) },
+        // Sorting & filters
+        currentSort: { ...(tableViewer.currentSort || { column: -1, direction: 'none' }) },
+        activeFilters: this.extractActiveFilters(),
+        savedFilters: tableViewer.savedFilters ? { ...tableViewer.savedFilters } : {},
+        // Charts (full serialization incl. axis selections)
+        charts: this.serializeCharts(tableViewer.charts || new Map()),
+        chartCounter: tableViewer.chartCounter || 0,
+        // UI
+        activeTab: this.getActiveTabId(),
+        theme: typeof document !== 'undefined' ? (document.body.getAttribute('data-theme') || 'light') : 'light',
+        // Meta
+        tableInfo: tableViewer.tableInfo ? { ...tableViewer.tableInfo } : null,
+        dataFingerprint: this.generateDataFingerprint(tableViewer.tableData)
+      };
+    } catch (e) {
+      console.error('Failed to generate state snapshot:', e);
+      return null;
+    }
+  }
+
+  /**
    * Save complete table viewer state to session storage
    */
   saveState(tableViewer) {
     try {
-      const state = {
-        // Table metadata
-        tableId: this.tableId,
-        timestamp: Date.now(),
-        
-        // Column configuration
-        columnTypes: [...tableViewer.columnTypes],
-        columnStats: [...tableViewer.columnStats],
-        numericFormatMap: { ...tableViewer.numericFormatMap },
-        
-        // Sorting state
-        currentSort: { ...tableViewer.currentSort },
-        
-        // Filter state
-        activeFilters: this.extractActiveFilters(),
-        
-        // Chart states
-        charts: this.serializeCharts(tableViewer.charts),
-        chartCounter: tableViewer.chartCounter,
-        
-        // UI state
-        activeTab: this.getActiveTabId(),
-        theme: document.body.getAttribute('data-theme') || 'light',
-        
-        // Filter state
-        savedFilters: tableViewer.savedFilters ? { ...tableViewer.savedFilters } : {},
-        
-        // Table info for validation
-        tableInfo: tableViewer.tableInfo ? { ...tableViewer.tableInfo } : null,
-        dataFingerprint: this.generateDataFingerprint(tableViewer.tableData)
-      };
+      const state = this.generateState(tableViewer);
+      if (!state) throw new Error('State generation failed');
 
       this.storage.setItem(this.storageKey, JSON.stringify(state));
       console.log(`💾 Table state saved for ${this.tableId}:`, Object.keys(state));

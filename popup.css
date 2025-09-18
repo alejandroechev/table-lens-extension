@@ -368,6 +368,24 @@ label {
   color: var(--text-secondary);
 }
 
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-small {
+  font-size: 11px;
+  padding: 6px 12px;
+  min-width: 60px;
+  flex: 0 0 auto;
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -417,4 +435,95 @@ label {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
+}
+
+/* Saved States */
+.saved-states-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+.saved-state-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  position: relative;
+}
+
+.saved-state-item:last-child {
+  border-bottom: none;
+}
+
+.saved-state-item:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-color);
+}
+
+.saved-state-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.saved-state-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.saved-state-timestamp {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.saved-state-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.saved-state-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.saved-state-load {
+  background: var(--accent-color);
+  color: white;
+}
+
+.saved-state-load:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.saved-state-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.saved-state-delete:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.no-saved-states {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-quaternary);
+}
+
+.no-saved-states .hint {
+  font-size: 12px;
+  margin-top: 8px;
+  opacity: 0.8;
 }

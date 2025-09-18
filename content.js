@@ -607,6 +607,105 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } catch (e) {
       sendResponse({ success:false, error: e.message });
     }
+  } else if (request.action === 'clearAllTables') {
+    try {
+      // Clear all stored tables from memory
+      const clearedTableIds = tableDetector.tables.map(table => table.id);
+      tableDetector.tables = [];
+      
+      // Clear all table state from localStorage and sessionStorage for these table IDs
+      let clearedStateCount = 0;
+      clearedTableIds.forEach(tableId => {
+        const stateKey = `tableLens_state_${tableId}`;
+        
+        // Try localStorage first
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            if (window.localStorage.getItem(stateKey)) {
+              window.localStorage.removeItem(stateKey);
+              clearedStateCount++;
+              console.log(`🗑️ Cleared localStorage state for ${tableId}`);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not access localStorage:', e);
+        }
+        
+        // Try sessionStorage as fallback
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            if (window.sessionStorage.getItem(stateKey)) {
+              window.sessionStorage.removeItem(stateKey);
+              clearedStateCount++;
+              console.log(`🗑️ Cleared sessionStorage state for ${tableId}`);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not access sessionStorage:', e);
+        }
+      });
+      
+      console.log(`All stored tables have been cleared (${clearedTableIds.length} tables, ${clearedStateCount} state entries)`);
+      sendResponse({ 
+        success: true, 
+        message: `Cleared ${clearedTableIds.length} tables and ${clearedStateCount} state entries`,
+        clearedTables: clearedTableIds.length,
+        clearedStates: clearedStateCount
+      });
+    } catch (e) {
+      console.error('Error clearing tables:', e);
+      sendResponse({ success: false, error: e.message });
+    }
+  } else if (request.action === 'loadSavedState') {
+    try {
+      const savedState = request.savedState;
+      
+      if (!savedState || !savedState.state) {
+        sendResponse({ success: false, error: 'Invalid saved state data' });
+        return;
+      }
+      
+      // Open a new table viewer window with the saved state
+      const tableViewerURL = chrome.runtime.getURL('table-viewer.html');
+      const newWindow = window.open(tableViewerURL, '_blank');
+      
+      if (newWindow) {
+        // Wait for the window to load, then send the saved state data
+        newWindow.onload = () => {
+          setTimeout(() => {
+            // Reconstruct the table data from the saved state
+            const tableData = {
+              tableData: savedState.state.tableData,
+              tableInfo: {
+                type: 'saved-state',
+                source: savedState.name,
+                timestamp: savedState.timestamp
+              }
+            };
+            
+            newWindow.postMessage({ 
+              type: 'TABLE_DATA', 
+              ...tableData 
+            }, '*');
+            
+            // Also send a message to restore the full state after the table loads
+            setTimeout(() => {
+              newWindow.postMessage({ 
+                type: 'RESTORE_SAVED_STATE', 
+                savedState: savedState.state 
+              }, '*');
+            }, 500);
+          }, 100);
+        };
+        
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'Failed to open new window. Popup blocked?' });
+      }
+    } catch (e) {
+      console.error('Error loading saved state:', e);
+      sendResponse({ success: false, error: e.message });
+    }
   }
   
   return true; // Keep message channel open
