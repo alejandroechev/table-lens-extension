@@ -2,6 +2,24 @@
 
 #### Save Functionality & Chart Auto-Loading Fixes
 - **Fixed Save Button**: Corrected HTML/JS mismatch where button had `id="saveStateBtn"` but code looked for `getElementById('saveState')`
+- **Fixed Cross-Page Saved State Loading**: Resolved issue where saved states only loaded from the original page where table was extracted
+  - **Root Cause**: Popup was sending messages to content script, which only exists on pages with detected tables
+  - **Solution**: Modified popup to open table viewer directly with `chrome.runtime.getURL()` and send data via postMessage
+  - **New Behavior**: Saved states can now be loaded from ANY page in the browser, not just the original source page
+  - **Enhanced Reliability**: Implemented multiple delivery attempts with staggered timing (8 attempts over 1.6 seconds) to handle browser timing variations
+  - **Better User Feedback**: Added loading indicators and timeout messages to inform users of load status
+- **Fixed Chart Duplication**: Resolved issue where loading saved workspace with one chart would show the chart twice
+  - **Root Cause**: Chart counter wasn't being reset when restoring saved state, causing ID conflicts
+  - **Solution**: Reset `this.chartCounter` to match saved state value during restoration
+- **Fixed X-Axis Serialization**: Enhanced chart configuration extraction to properly handle scatter plot X-axis values
+  - **Root Cause**: `parseInt()` was failing on empty/null values, defaulting to 0 instead of preserving selection
+  - **Solution**: Added proper null checking and validation before parsing, with fallback to first column
+  - **Chart Restoration**: Improved X-axis restoration with better type checking and null handling
+- **Fixed Saved State Loading**: Resolved issue where loaded states opened blank windows with "Requesting table data from parent" message
+  - **Root Cause**: New windows were trying to request data from non-existent parent instead of using sent postMessage data
+  - **Solution**: Added `dataReceived` flag to prevent unnecessary parent requests when data arrives via postMessage
+  - **Improved Reliability**: Enhanced content script to use multiple delivery approaches (immediate, onload, polling) for cross-browser compatibility
+  - **Better Logging**: Added comprehensive console logging to debug message flow between content script and table viewer
 - **Removed Automatic Chart Loading**: Eliminated automatic state restoration that was loading charts on every table open
   - **Previous Issue**: Charts were auto-loading from localStorage even for new tables, causing confusion
   - **Solution**: Removed `loadState()` and `restoreAdvancedState()` calls from `handleTableData()` 

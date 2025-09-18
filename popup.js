@@ -843,29 +843,31 @@ class PopupController {
         this.showStatus('Saved state not found', 'error');
         return;
       }
-
-      // Get current tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) {
-        this.showStatus('Unable to access current tab', 'error');
+      // Use a robust transfer token via localStorage to avoid timing races with postMessage
+      const transferKey = `tableLens_transfer_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const payload = {
+        name: state.name,
+        timestamp: state.timestamp,
+        savedState: state.state
+      };
+      try {
+        localStorage.setItem(transferKey, JSON.stringify(payload));
+      } catch (e) {
+        this.showStatus('Storage error saving workspace', 'error');
+        console.error('Transfer storage error:', e);
         return;
       }
 
-      // Send the saved state to be loaded
-      const response = await chrome.tabs.sendMessage(tab.id, { 
-        action: 'loadSavedState',
-        savedState: state
-      });
-
-      if (response && response.success) {
-        this.showStatus(`✅ Loaded state "${state.name}"`, 'success');
-        setTimeout(() => this.hideStatus(), 3000);
-        // Close popup after successful load
-        window.close();
-      } else {
-        this.showStatus('Failed to load saved state', 'error');
-        setTimeout(() => this.hideStatus(), 3000);
+      const tableViewerURL = `${chrome.runtime.getURL('table-viewer.html')}?transfer=${encodeURIComponent(transferKey)}`;
+      const newWindow = window.open(tableViewerURL, '_blank');
+      if (!newWindow) {
+        this.showStatus('Popup blocked opening viewer', 'error');
+        return;
       }
+
+      this.showStatus(`✅ Loading workspace "${state.name}"`, 'success');
+      setTimeout(() => this.hideStatus(), 2000);
+      setTimeout(() => window.close(), 800);
     } catch (error) {
       console.error('Error loading saved state:', error);
       this.showStatus('Error loading saved state', 'error');

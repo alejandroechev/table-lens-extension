@@ -194,19 +194,58 @@ class TableViewer {
   }
   
   loadTableData() {
-    // Signal to parent that we're ready
-    if (window.opener) {
-      console.log('Requesting table data from parent');
-      window.opener.postMessage({ type: 'REQUEST_TABLE_DATA' }, '*');
-    }
-    
-    // Fallback: get from URL parameters
+    const headerEl = document.getElementById('headerTitle');
+    if (headerEl) headerEl.textContent = '⏳ Loading workspace...';
+
     const urlParams = new URLSearchParams(window.location.search);
-    const tableIndex = urlParams.get('table');
-    if (tableIndex !== null) {
-      console.log('Getting table data from URL parameter:', tableIndex);
-      // This would require passing data through URL, which has limitations
-      // Better to use postMessage approach above
+    const transferKey = urlParams.get('transfer');
+
+    if (transferKey) {
+      // Attempt to read transfer payload
+      try {
+        const raw = localStorage.getItem(transferKey);
+        if (!raw) {
+          headerEl && (headerEl.textContent = '❌ Workspace not found');
+          return;
+        }
+        const payload = JSON.parse(raw);
+        // Clean up transfer key to avoid buildup
+        localStorage.removeItem(transferKey);
+        if (!payload || !payload.savedState || !payload.savedState.tableData) {
+          headerEl && (headerEl.textContent = '❌ Invalid workspace payload');
+          return;
+        }
+        // Construct minimal data object for existing handler
+        this.handleTableData({
+          tableData: payload.savedState.tableData,
+          tableInfo: {
+            type: 'saved-state',
+            source: payload.name,
+            timestamp: payload.timestamp
+          }
+        });
+        // After base data render, restore full state
+        setTimeout(() => this.restoreFromSavedState(payload.savedState), 150);
+        headerEl && (headerEl.textContent = `💾 ${payload.name}`);
+        return; // Done
+      } catch (e) {
+        console.error('Failed to load transfer workspace:', e);
+        headerEl && (headerEl.textContent = '❌ Failed to load workspace');
+        return;
+      }
+    }
+
+    // Fallback legacy behavior (opener flow)
+    if (window.opener) {
+      console.log('Legacy: requesting table data from parent');
+      window.opener.postMessage({ type: 'REQUEST_TABLE_DATA' }, '*');
+      setTimeout(() => {
+        if (!this.tableData) {
+          headerEl && (headerEl.textContent = '❌ No data received');
+        }
+      }, 8000);
+    } else {
+      headerEl && (headerEl.textContent = '❌ No workspace key provided');
     }
   }
   

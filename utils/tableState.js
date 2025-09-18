@@ -235,7 +235,7 @@ class TableStateManager {
     // Small delay to ensure axis controls are created
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    if (xAxisSelect && typeof chartState.config.xColumn === 'number') {
+    if (xAxisSelect && chartState.config.xColumn !== null && chartState.config.xColumn !== undefined && !isNaN(chartState.config.xColumn)) {
       xAxisSelect.value = chartState.config.xColumn.toString();
     }
 
@@ -493,8 +493,13 @@ class TableStateManager {
 
     const config = {
       chartType: typeSelect ? typeSelect.value : 'line',
-      xColumn: xAxisSelect ? parseInt(xAxisSelect.value) : 0
+      xColumn: xAxisSelect && xAxisSelect.value !== '' ? parseInt(xAxisSelect.value) : null
     };
+
+    // Ensure xColumn is valid
+    if (config.xColumn === null || isNaN(config.xColumn)) {
+      config.xColumn = 0; // Default to first column
+    }
 
     // Extract Y-axis selection
     if (yCheckboxes) {

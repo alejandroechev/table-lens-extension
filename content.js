@@ -670,9 +670,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const newWindow = window.open(tableViewerURL, '_blank');
       
       if (newWindow) {
-        // Wait for the window to load, then send the saved state data
-        newWindow.onload = () => {
-          setTimeout(() => {
+        // Use a more reliable approach to send data to the new window
+        const sendDataToWindow = () => {
+          try {
             // Reconstruct the table data from the saved state
             const tableData = {
               tableData: savedState.state.tableData,
@@ -683,20 +683,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               }
             };
             
+            console.log('Sending TABLE_DATA to new window:', tableData);
             newWindow.postMessage({ 
               type: 'TABLE_DATA', 
               ...tableData 
             }, '*');
             
-            // Also send a message to restore the full state after the table loads
+            // Send the full state for restoration after a short delay
             setTimeout(() => {
+              console.log('Sending RESTORE_SAVED_STATE to new window');
               newWindow.postMessage({ 
                 type: 'RESTORE_SAVED_STATE', 
                 savedState: savedState.state 
               }, '*');
-            }, 500);
-          }, 100);
+            }, 300);
+          } catch (error) {
+            console.error('Error sending data to new window:', error);
+          }
         };
+        
+        // Try multiple approaches to ensure the data gets sent
+        // 1. Immediate attempt
+        setTimeout(sendDataToWindow, 100);
+        
+        // 2. Window load event
+        newWindow.addEventListener('load', () => {
+          setTimeout(sendDataToWindow, 50);
+        });
+        
+        // 3. Document ready state check with polling
+        const pollForReady = () => {
+          try {
+            if (newWindow.document && newWindow.document.readyState === 'complete') {
+              sendDataToWindow();
+            } else {
+              setTimeout(pollForReady, 100);
+            }
+          } catch (e) {
+            // Cross-origin or timing issues, use fallback
+            setTimeout(sendDataToWindow, 200);
+          }
+        };
+        setTimeout(pollForReady, 50);
         
         sendResponse({ success: true });
       } else {
