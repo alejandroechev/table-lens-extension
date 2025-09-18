@@ -137,12 +137,13 @@ class TableDetector {
       const prioritizedTables = this.detectTablesWithNestingLogic(Array.from(htmlTables));
       
       prioritizedTables.forEach((tableInfo, index) => {
+        const tableId = this.generateTableId(tableInfo, 'html', index);
         this.tables.push({
           type: 'html',
           element: tableInfo.element,
           data: tableInfo.data,
           preview: this.generatePreview(tableInfo.data),
-          id: `html-${index}`,
+          id: tableId,
           metadata: {
             dataDensity: tableInfo.dataDensity,
             isContainerTable: tableInfo.isContainerTable,
@@ -159,12 +160,13 @@ class TableDetector {
       if (this.looksLikeCSV(text)) {
         const data = TableParser.parseCSV(text);
         if (data.length > 1) {
+          const tableId = this.generateTableId({ element, data }, 'csv', index);
           this.tables.push({
             type: 'csv',
             element: element,
             data: data,
             preview: this.generatePreview(data),
-            id: `csv-${index}`
+            id: tableId
           });
         }
       }
@@ -172,12 +174,13 @@ class TableDetector {
       if (this.looksLikeMarkdown(text)) {
         const data = TableParser.parseMarkdownTable(text);
         if (data.length > 1) {
+          const tableId = this.generateTableId({ element, data }, 'markdown', index);
           this.tables.push({
             type: 'markdown',
             element: element,
             data: data,
             preview: this.generatePreview(data),
-            id: `markdown-${index}`
+            id: tableId
           });
         }
       }
@@ -198,12 +201,13 @@ class TableDetector {
       }
       
       if (data.length > 1) {
+        const tableId = this.generateTableId({ data }, `${type}-selection`, 0);
         this.tables.push({
           type: `${type}-selection`,
           element: null,
           data: data,
           preview: this.generatePreview(data),
-          id: 'selection-0'
+          id: tableId
         });
       }
     }
@@ -336,6 +340,36 @@ class TableDetector {
     ).join('\n');
     
     return preview + (data.length > maxRows ? '\n...' : '');
+  }
+
+  /**
+   * Generate a consistent table ID for state management
+   */
+  generateTableId(tableInfo, type, index) {
+    const data = tableInfo.data || [];
+    const element = tableInfo.element;
+    
+    // Try to use existing element ID or name
+    if (element && (element.id || element.getAttribute('name'))) {
+      const elementId = element.id || element.getAttribute('name');
+      return `${type}_${elementId}_${index}`;
+    }
+    
+    // Generate ID from table content characteristics
+    const headers = data[0] || [];
+    const rowCount = data.length - 1;
+    const colCount = headers.length;
+    
+    // Create a simple hash from headers
+    let hash = 0;
+    const str = headers.join('|') + `_${rowCount}x${colCount}`;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return `${type}_${Math.abs(hash).toString(36)}_${index}`;
   }
   
   highlightTable(index) {
@@ -516,12 +550,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const page = t.page != null ? t.page : t.table?.page;
         const tableIndex = t.table_index != null ? t.table_index : t.index != null ? t.index : t.table?.table_index;
         console.log('[BatchInject] Adding table', { idx, page, tableIndex, rowCount: rows.length, colCount: rows[0]?.length });
+        const tableId = tableDetector.generateTableId({ data: rows }, 'pdf-batch', idx);
         tableDetector.tables.push({
           type: 'pdf-batch',
           element: null,
             data: rows,
             preview: preview,
-            id: `pdf-batch-${Date.now()}-${idx}`,
+            id: tableId,
             page: page,
             tableIndex: tableIndex
         });
@@ -531,6 +566,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           table: {
             type: 'pdf-batch',
             preview,
+            id: tableId,
             columns: Array.isArray(rows[0]) ? rows[0] : [],
             page: page,
             tableIndex: tableIndex

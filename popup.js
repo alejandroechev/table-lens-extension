@@ -124,9 +124,11 @@ class PopupController {
         return;
       }
       // Add to popup list
-      normalized.forEach(t => {
+      normalized.forEach((t, index) => {
         const preview = this.generatePreviewFromRaw(t.rows || []);
+        const tableId = `pdf_p${t.page || 0}_t${t.table_index || index}_${Date.now()}`;
         this.tables.push({
+          id: tableId, // Add consistent ID for state management
           type: 'pdf-batch',
           columns: (t.rows && Array.isArray(t.rows[0]) ? t.rows[0] : []),
           preview,
@@ -177,8 +179,12 @@ class PopupController {
       // Deduplicate by id if popup was reopened rapidly
       const existingIds = new Set(this.tables.map(t => t.id));
       let added = 0;
-      resp.tables.forEach(t => {
+      resp.tables.forEach((t, index) => {
         if (existingIds.has(t.id)) return;
+        // Ensure table has an ID for state management
+        if (!t.id) {
+          t.id = `restored_${t.type || 'table'}_${index}_${Date.now()}`;
+        }
         this.tables.push(t);
         existingIds.add(t.id);
         added++;
@@ -272,9 +278,11 @@ class PopupController {
         this.showStatus('Failed injecting tables after fallback.', 'error');
         return false;
       }
-      normalized.forEach(t => {
+      normalized.forEach((t, index) => {
         const preview = this.generatePreviewFromRaw(t.rows || []);
+        const tableId = `fallback_p${t.page || 0}_t${t.table_index || index}_${Date.now()}`;
         this.tables.push({
+          id: tableId, // Add consistent ID for state management
           type: 'pdf-batch',
           columns: (t.rows && Array.isArray(t.rows[0]) ? t.rows[0] : []),
           preview,
@@ -519,7 +527,7 @@ class PopupController {
           viewerWindow.postMessage({
             type: 'TABLE_DATA',
             tableData: response.data,
-            tableInfo: this.selectedTable
+            tableInfo: { ...this.selectedTable, persistedId: this.selectedTable.id }
           }, '*');
           window.removeEventListener('message', messageListener);
         }
@@ -533,7 +541,7 @@ class PopupController {
           viewerWindow.postMessage({
             type: 'TABLE_DATA',
             tableData: response.data,
-            tableInfo: this.selectedTable
+            tableInfo: { ...this.selectedTable, persistedId: this.selectedTable.id }
           }, '*');
           window.removeEventListener('message', messageListener);
         }, 500);

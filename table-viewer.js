@@ -9,7 +9,10 @@ class TableViewer {
     this.columnStats = []; // Selected stat function per column
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
-  this.numericFormatMap = {}; // columnIndex -> { thousand: ',', decimal: '.' }
+    this.numericFormatMap = {}; // columnIndex -> { thousand: ',', decimal: '.' }
+    this.stateManager = null; // Will be initialized when table data is loaded
+  this.stateRestored = false; // Flag to track if state has been restored
+  this.savedFilters = {}; // Persisted filters per column
     
     // Define chart type requirements
     this.chartTypeDefinitions = {
@@ -201,11 +204,39 @@ class TableViewer {
     this.originalData = [...this.tableData]; // Store original order
     this.filteredData = [...this.tableData];
     
-    this.analyzeColumnTypes();
-    this.initializeColumnStats();
+    // Initialize state manager with table ID
+    const tableId = this.generateTableId();
+    this.stateManager = new TableStateManager(tableId);
+    
+    // Try to load saved state
+    const savedState = this.stateManager.loadState();
+    
+    if (savedState) {
+      // Apply saved state
+      const stateApplied = this.stateManager.applyState(this, savedState);
+      if (stateApplied) {
+        this.stateRestored = true;
+        console.log(`🔄 Restored table state for ${tableId}`);
+      }
+    }
+    
+    // If no state was restored, analyze column types normally
+    if (!this.stateRestored) {
+      this.analyzeColumnTypes();
+      this.initializeColumnStats();
+    }
+    
     this.updateHeader();
     this.renderDataTable();
     this.setupDataControls();
+    
+    // Restore advanced state after initial render
+    if (savedState && this.stateRestored) {
+      setTimeout(() => this.restoreAdvancedState(savedState), 200);
+    }
+    
+    // Auto-save state when changes are made
+    this.setupAutoSave();
   }
 
   /**
@@ -544,6 +575,7 @@ class TableViewer {
         this.numericFormatMap[columnIndex] = { thousand: safeThousand, decimal: safeDecimal };
       }
       this.renderDataTable();
+      this.saveState?.();
     }
     modal.remove();
   }
@@ -630,7 +662,12 @@ class TableViewer {
     this.calculateAllStats();
     
     // Add filter buttons to headers after table is rendered
-    setTimeout(() => this.addHeaderFilterButtons(), 100);
+    setTimeout(() => {
+      this.addHeaderFilterButtons();
+      this.updateAllFilterButtonStates();
+    }, 100);
+    // Persist state after render to capture any structural changes
+    this.saveState?.();
   }
   
   setupDataControls() {
@@ -728,6 +765,25 @@ class TableViewer {
     
     // Re-attach filter event listeners for the popup content
     this.attachPopupFilterListeners(popup, columnIndex);
+    // Rehydrate existing saved filter if present
+    const existing = this.savedFilters[columnIndex];
+    if (existing) {
+      try {
+        if (existing.type === 'numeric') {
+          if (existing.min != null) popup.querySelector('.filter-min').value = existing.min;
+          if (existing.max != null) popup.querySelector('.filter-max').value = existing.max;
+        } else if (existing.type === 'date') {
+          if (existing.from) popup.querySelector('.filter-date-from').value = existing.from;
+          if (existing.to) popup.querySelector('.filter-date-to').value = existing.to;
+        } else if (existing.type === 'categorical') {
+          const sel = popup.querySelector('.filter-select');
+          if (sel && existing.selected) {
+            Array.from(sel.options).forEach(o => { o.selected = existing.selected.includes(o.value); });
+          }
+          if (existing.text && popup.querySelector('.filter-text')) popup.querySelector('.filter-text').value = existing.text;
+        }
+      } catch (e) { console.debug('Filter restore failed', e); }
+    }
     
     // Store reference for closing
     this.activeFilterPopup = popup;
@@ -780,6 +836,8 @@ class TableViewer {
       
       this.activeFilterPopup.remove();
       this.activeFilterPopup = null;
+      // Save state after closing popup (filters may have changed)
+      this.saveState?.();
     }
   }
 
@@ -790,42 +848,76 @@ class TableViewer {
     // Numeric filters
     popup.querySelectorAll('.filter-min, .filter-max').forEach(input => {
       input.addEventListener('input', () => {
+        this.captureFilterState(columnIndex, popup, 'numeric');
         this.applyColumnFilters();
         this.updateFilterButtonState(columnIndex);
       });
     });
-    
+
     // Date filters
     popup.querySelectorAll('.filter-date-from, .filter-date-to').forEach(input => {
       input.addEventListener('change', () => {
+        this.captureFilterState(columnIndex, popup, 'date');
         this.applyColumnFilters();
         this.updateFilterButtonState(columnIndex);
       });
     });
-    
-    // Categorical filters
+
+    // Categorical filters (select)
     popup.querySelectorAll('.filter-select').forEach(select => {
       select.addEventListener('change', () => {
+        this.captureFilterState(columnIndex, popup, 'categorical');
         this.applyColumnFilters();
         this.updateFilterButtonState(columnIndex);
       });
     });
-    
+
+    // Categorical filters (text)
     popup.querySelectorAll('.filter-text').forEach(input => {
       input.addEventListener('input', () => {
+        this.captureFilterState(columnIndex, popup, 'categorical');
         this.applyColumnFilters();
         this.updateFilterButtonState(columnIndex);
       });
     });
-    
+
     // Clear filter button
     const clearBtn = popup.querySelector('.filter-clear');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
         this.clearColumnFilter(columnIndex);
         this.updateFilterButtonState(columnIndex);
+        delete this.savedFilters[columnIndex];
+        this.saveState?.();
       });
     }
+  }
+  captureFilterState(columnIndex, popup, type) {
+    try {
+      const f = { type };
+      if (type === 'numeric') {
+        const minEl = popup.querySelector('.filter-min');
+        const maxEl = popup.querySelector('.filter-max');
+        if (minEl?.value) f.min = minEl.value; if (maxEl?.value) f.max = maxEl.value;
+        if (!f.min && !f.max) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+      } else if (type === 'date') {
+        const fromEl = popup.querySelector('.filter-date-from');
+        const toEl = popup.querySelector('.filter-date-to');
+        if (fromEl?.value) f.from = fromEl.value; if (toEl?.value) f.to = toEl.value;
+        if (!f.from && !f.to) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+      } else if (type === 'categorical') {
+        const sel = popup.querySelector('.filter-select');
+        const txt = popup.querySelector('.filter-text');
+        if (sel) {
+          const selected = Array.from(sel.selectedOptions).map(o=>o.value).filter(v=>v);
+          if (selected.length) f.selected = selected;
+        }
+        if (txt?.value.trim()) f.text = txt.value.trim();
+        if (!f.selected && !f.text) { delete this.savedFilters[columnIndex]; this.saveState?.(); return; }
+      }
+      this.savedFilters[columnIndex] = f;
+      this.saveState?.();
+    } catch(e) { console.debug('captureFilterState error', e); }
   }
 
   /**
@@ -846,26 +938,41 @@ class TableViewer {
     }
   }
 
+  updateAllFilterButtonStates() {
+    // Update all filter button states based on savedFilters
+    Object.keys(this.savedFilters).forEach(columnIndex => {
+      this.updateFilterButtonState(parseInt(columnIndex));
+    });
+  }
+
   /**
    * Check if a column has active filters
    */
   hasActiveFilter(columnIndex) {
-    const popup = this.activeFilterPopup;
-    if (!popup || popup.getAttribute('data-column') != columnIndex) {
-      // Check if there are any stored filter values for this column
-      // This is a simplified check - in a full implementation you'd store filter state
-      return false;
+    // Check savedFilters first (persistent state)
+    const savedFilter = this.savedFilters[columnIndex];
+    if (savedFilter) {
+      if (savedFilter.type === 'numeric') {
+        return savedFilter.min != null || savedFilter.max != null;
+      } else if (savedFilter.type === 'date') {
+        return savedFilter.from || savedFilter.to;
+      } else if (savedFilter.type === 'categorical') {
+        return (savedFilter.selected && savedFilter.selected.length > 0) || (savedFilter.text && savedFilter.text.trim());
+      }
     }
     
-    // Check current popup for active filters
-    const inputs = popup.querySelectorAll('input, select');
-    for (const input of inputs) {
-      if (input.type === 'text' || input.type === 'number' || input.type === 'date') {
-        if (input.value.trim()) return true;
-      } else if (input.type === 'select-multiple' && input.selectedOptions.length > 0) {
-        const hasNonEmptySelection = Array.from(input.selectedOptions)
-          .some(option => option.value !== '');
-        if (hasNonEmptySelection) return true;
+    // Fallback to popup state if active
+    const popup = this.activeFilterPopup;
+    if (popup && popup.getAttribute('data-column') == columnIndex) {
+      const inputs = popup.querySelectorAll('input, select');
+      for (const input of inputs) {
+        if (input.type === 'text' || input.type === 'number' || input.type === 'date') {
+          if (input.value.trim()) return true;
+        } else if (input.type === 'select-multiple' && input.selectedOptions.length > 0) {
+          const hasNonEmptySelection = Array.from(input.selectedOptions)
+            .some(option => option.value !== '');
+          if (hasNonEmptySelection) return true;
+        }
       }
     }
     
@@ -1205,12 +1312,8 @@ class TableViewer {
     const headers = this.originalData[0];
     const rows = this.originalData.slice(1);
     
-    // Filter rows based on all active column filters
-    const filteredRows = rows.filter(row => {
-      return headers.every((header, columnIndex) => {
-        return this.rowPassesColumnFilter(row, columnIndex);
-      });
-    });
+    // Filter via savedFilters map
+    const filteredRows = rows.filter(row => headers.every((_, ci) => this.rowPassesSavedFilter(row, ci)));
     
     this.filteredData = [headers, ...filteredRows];
     
@@ -1220,125 +1323,35 @@ class TableViewer {
     } else {
       this.renderDataTable();
     }
+    this.saveState?.();
   }
-  
-  /**
-   * Check if a row passes the filter for a specific column
-   */
-  rowPassesColumnFilter(row, columnIndex) {
-    const columnType = this.columnTypes[columnIndex] || 'categorical';
-    const cellValue = row[columnIndex];
-    
-    if (cellValue == null) return true; // Allow null/undefined values
-    
-    const cellText = String(cellValue).trim();
-    if (cellText === '') return true; // Allow empty values
-    
-    switch (columnType) {
-      case 'numeric':
-      case 'money':
-      case 'percentage':
-        return this.checkNumericFilter(cellValue, columnIndex);
-        
-      case 'date':
-        return this.checkDateFilter(cellValue, columnIndex);
-        
-      case 'categorical':
-      default:
-        return this.checkCategoricalFilter(cellValue, columnIndex);
+
+  rowPassesSavedFilter(row, columnIndex) {
+    const f = this.savedFilters[columnIndex];
+    if (!f) return true;
+    const raw = row[columnIndex];
+    if (f.type === 'numeric') {
+      const num = this.parseNumericValue(raw, columnIndex);
+      if (f.min != null && num < parseFloat(f.min)) return false;
+      if (f.max != null && num > parseFloat(f.max)) return false;
+      return true;
     }
-  }
-  
-  /**
-   * Check numeric range filter
-   */
-  checkNumericFilter(cellValue, columnIndex) {
-    const minInput = document.querySelector(`.filter-min[data-column="${columnIndex}"]`);
-    const maxInput = document.querySelector(`.filter-max[data-column="${columnIndex}"]`);
-    
-    if (!minInput || !maxInput) return true;
-    
-    const minValue = minInput.value ? parseFloat(minInput.value) : null;
-    const maxValue = maxInput.value ? parseFloat(maxInput.value) : null;
-    
-    if (minValue === null && maxValue === null) return true;
-    
-    const numericValue = this.parseNumericValue(cellValue, columnIndex);
-    
-    if (minValue !== null && numericValue < minValue) return false;
-    if (maxValue !== null && numericValue > maxValue) return false;
-    
+    if (f.type === 'date') {
+      const d = this.parseDateValue(raw);
+      if (!d) return true;
+      if (f.from && d < new Date(f.from)) return false;
+      if (f.to && d > new Date(f.to)) return false;
+      return true;
+    }
+    if (f.type === 'categorical') {
+      const text = (raw == null ? '' : String(raw)).trim();
+      if (f.selected && f.selected.length && !f.selected.includes(text)) return false;
+      if (f.text && !text.toLowerCase().includes(f.text.toLowerCase())) return false;
+      return true;
+    }
     return true;
   }
-  
-  /**
-   * Check date range filter
-   */
-  checkDateFilter(cellValue, columnIndex) {
-    const fromInput = document.querySelector(`.filter-date-from[data-column="${columnIndex}"]`);
-    const toInput = document.querySelector(`.filter-date-to[data-column="${columnIndex}"]`);
-    
-    if (!fromInput || !toInput) return true;
-    
-    const fromDate = fromInput.value ? new Date(fromInput.value) : null;
-    const toDate = toInput.value ? new Date(toInput.value) : null;
-    
-    if (!fromDate && !toDate) return true;
-    
-    // Try to parse the cell value as a date
-    let cellDate;
-    try {
-      // Handle various date formats
-      const cellStr = String(cellValue).trim();
-      if (cellStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-        // DD/MM/YYYY format
-        const [day, month, year] = cellStr.split('/');
-        cellDate = new Date(year, month - 1, day);
-      } else {
-        cellDate = new Date(cellStr);
-      }
-      
-      if (isNaN(cellDate.getTime())) return true; // Invalid date, allow through
-    } catch {
-      return true; // Error parsing, allow through
-    }
-    
-    if (fromDate && cellDate < fromDate) return false;
-    if (toDate && cellDate > toDate) return false;
-    
-    return true;
-  }
-  
-  /**
-   * Check categorical filter (dropdown selection or text search)
-   */
-  checkCategoricalFilter(cellValue, columnIndex) {
-    const selectInput = document.querySelector(`.filter-select[data-column="${columnIndex}"]`);
-    const textInput = document.querySelector(`.filter-text[data-column="${columnIndex}"]`);
-    
-    if (!selectInput || !textInput) return true;
-    
-    const selectedValues = Array.from(selectInput.selectedOptions).map(opt => opt.value).filter(v => v !== '');
-    const searchText = textInput.value.toLowerCase().trim();
-    
-    // If no filters are active, allow through
-    if (selectedValues.length === 0 && searchText === '') return true;
-    
-    const cellText = String(cellValue).trim();
-    
-    // Check dropdown selection
-    if (selectedValues.length > 0) {
-      if (!selectedValues.includes(cellText)) return false;
-    }
-    
-    // Check text search
-    if (searchText !== '') {
-      if (!cellText.toLowerCase().includes(searchText)) return false;
-    }
-    
-    return true;
-  }
-  
+
   /**
    * Clear all column filters
    */
@@ -1355,7 +1368,9 @@ class TableViewer {
     
     // Reset filtered data and re-render
     this.filteredData = [...this.originalData];
+    this.savedFilters = {};
     this.renderDataTable();
+    this.saveState?.();
   }
   
   /**
@@ -1372,8 +1387,10 @@ class TableViewer {
       }
     });
     
-    // Reapply filters
+    // Reapply filters and remove saved state
+    delete this.savedFilters[columnIndex];
     this.applyColumnFilters();
+    this.saveState?.();
   }
 
   updateColumnStat(columnIndex, statFunction) {
@@ -1565,10 +1582,7 @@ class TableViewer {
     const tab = document.createElement('button');
     tab.className = 'tab';
     tab.setAttribute('data-tab', chartId);
-    tab.innerHTML = `
-      📈 ${chartName}
-      <span class="close-btn" title="Close chart">×</span>
-    `;
+    tab.innerHTML = `📈 ${chartName} <span class="close-btn" title="Close chart">×</span>`;
     this.elements.tabBar.appendChild(tab);
     
     // Create tab panel
@@ -1584,6 +1598,9 @@ class TableViewer {
     
     // Initialize chart controls
     this.initializeChartControls(chartId);
+    
+    // Save state after creating chart
+    this.saveState();
   }
   
   createChartPanelHTML(chartId, chartName) {
@@ -1837,6 +1854,8 @@ class TableViewer {
     
     // Initial validation
     validateInputs();
+    // Save any auto-selected defaults
+    this.saveState?.();
   }
 
   autoSelectSmartDefaults(chartId, chartType) {
@@ -1991,6 +2010,9 @@ class TableViewer {
       
       this.showStatus(chartId, 'Chart generated successfully!', 'success');
       console.log('Chart created:', chart);
+      
+      // Save state after chart generation
+      setTimeout(() => this.saveState(), 500);
       
     } catch (error) {
       console.error('Error generating chart:', error);
@@ -2307,6 +2329,9 @@ class TableViewer {
     if (tab && tab.classList.contains('active')) {
       this.switchTab('data');
     }
+    
+    // Save state after closing chart
+    this.saveState();
   }
   
   showStatus(chartId, message, type) {
@@ -2434,6 +2459,144 @@ class TableViewer {
     // Update existing charts if any
     if (this.charts && this.charts.size > 0) {
       this.updateAllChartsTheme();
+    }
+    
+    // Save state when theme changes
+    this.saveState();
+  }
+  
+  /**
+   * Generate a unique table ID for state management
+   */
+  generateTableId() {
+    if (this.tableInfo) {
+      if (this.tableInfo.persistedId) return this.tableInfo.persistedId;
+      if (this.tableInfo.id) return this.tableInfo.id;
+    }
+    
+    // Generate ID from table characteristics
+    const headers = this.tableData && this.tableData[0] ? this.tableData[0] : [];
+    const rowCount = this.tableData ? this.tableData.length - 1 : 0;
+    const colCount = headers.length;
+    
+    // Create hash from headers and basic info
+    let hash = 0;
+    const str = headers.join('|') + `_${rowCount}x${colCount}`;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return `table_${Math.abs(hash).toString(36)}`;
+  }
+  
+  /**
+   * Restore advanced state (filters, charts, active tab)
+   */
+  async restoreAdvancedState(savedState) {
+    try {
+      // Restore filters
+      if (savedState.activeFilters) {
+        this.stateManager.restoreFilters(savedState.activeFilters);
+        // Apply the restored filters
+        this.applyColumnFilters();
+      }
+      
+      // Restore charts
+      if (savedState.charts) {
+        await this.stateManager.restoreCharts(this, savedState.charts);
+      }
+      
+      // Restore active tab
+      if (savedState.activeTab) {
+        this.stateManager.restoreActiveTab(savedState.activeTab);
+      }
+      
+      // Apply saved filters immediately
+      if (Object.keys(this.savedFilters).length > 0) {
+        console.log('🔍 Applying restored filters:', this.savedFilters);
+        this.applyColumnFilters();
+      }
+      
+      // Restore sorting if any
+      if (savedState.currentSort && savedState.currentSort.column !== -1) {
+        this.sortTable(savedState.currentSort.column, savedState.currentSort.direction);
+      }
+      
+      console.log('🎯 Advanced state restoration completed');
+    } catch (error) {
+      console.error('Error restoring advanced state:', error);
+    }
+  }
+  
+  /**
+   * Setup auto-save functionality
+   */
+  setupAutoSave() {
+    // Auto-save on various actions with debouncing
+    let saveTimeout = null;
+    const debouncedSave = () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => this.saveState(), 1000);
+    };
+    
+    // Save state when significant changes occur
+    const originalSortTable = this.sortTable.bind(this);
+    this.sortTable = (...args) => {
+      const result = originalSortTable(...args);
+      debouncedSave();
+      return result;
+    };
+    
+    const originalApplyColumnFilters = this.applyColumnFilters.bind(this);
+    this.applyColumnFilters = (...args) => {
+      const result = originalApplyColumnFilters(...args);
+      debouncedSave();
+      return result;
+    };
+    
+    const originalUpdateColumnStat = this.updateColumnStat.bind(this);
+    this.updateColumnStat = (...args) => {
+      const result = originalUpdateColumnStat(...args);
+      debouncedSave();
+      return result;
+    };
+    
+    const originalApplyColumnTypeChange = this.applyColumnTypeChange.bind(this);
+    this.applyColumnTypeChange = (...args) => {
+      const result = originalApplyColumnTypeChange(...args);
+      debouncedSave();
+      return result;
+    };
+    
+    // Save state when switching tabs
+    const originalSwitchTab = this.switchTab.bind(this);
+    this.switchTab = (...args) => {
+      const result = originalSwitchTab(...args);
+      this.saveState();
+      return result;
+    };
+    
+    // Save state before window closes
+    window.addEventListener('beforeunload', () => this.saveState());
+  }
+  
+  /**
+   * Save current state to session storage
+   */
+  saveState() {
+    if (this.stateManager && this.tableData) {
+      this.stateManager.saveState(this);
+    }
+  }
+  
+  /**
+   * Clear saved state
+   */
+  clearSavedState() {
+    if (this.stateManager) {
+      this.stateManager.clearState();
     }
   }
 }

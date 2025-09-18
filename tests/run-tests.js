@@ -36,6 +36,21 @@ try {
 } catch (e) {
   console.error('Failed loading nested table integration tests', e);
 }
+try {
+  const stateTestModule = require('./tableState.test.js');
+  // The state test module exports functions, so we need to wrap them in the expected format
+  if (stateTestModule.runAllTests) {
+    tests.push({
+      name: 'Table State Management - Full Suite',
+      fn: () => {
+        const result = stateTestModule.runAllTests();
+        if (!result) throw new Error('State management tests failed');
+      }
+    });
+  }
+} catch (e) {
+  console.error('Failed loading table state tests', e);
+}
 
 let passed = 0;
 let failed = 0;
