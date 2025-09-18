@@ -420,8 +420,7 @@ class PopupController {
     if (this.tables.length === 0) {
       this.elements.tableList.innerHTML = `
         <div class="no-tables">
-          <p>No tables detected on this page</p>
-          <p class="hint">Try scanning for HTML/CSV tables or use Screenshot Capture to extract tables from images</p>
+          <p class="hint">Click "Extract All Tables" to automatically detect and extract HTML tables from webpages</p>
         </div>
       `;
       
@@ -781,8 +780,8 @@ class PopupController {
     if (savedStates.length === 0) {
       this.elements.savedStatesList.innerHTML = `
         <div class="no-saved-states">
-          <p>No saved table states yet</p>
-          <p class="hint">Open a table in the viewer and click "💾 Save State" to save configurations</p>
+          <p>No saved table workspaces yet</p>
+          <p class="hint">Open a table in the viewer and click "💾 Save Workspace" to save table and charts</p>
         </div>`;
       return;
     }

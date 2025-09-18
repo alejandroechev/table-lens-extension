@@ -40,7 +40,7 @@
   --text-secondary: #cbd5e0;
   --text-tertiary: #a0aec0;
   --text-quaternary: #718096;
-  --text-muted: #4a5568;
+  --text-muted: #5f6e85;
   --border-primary: #4a5568;
   --border-secondary: #2d3748;
   --shadow-primary: rgba(0, 0, 0, 0.3);
@@ -208,6 +208,7 @@ h3 {
 .no-tables .hint {
   font-size: 12px;
   color: var(--text-muted);
+  font-style: normal;
 }
 
 .table-actions {
@@ -525,5 +526,5 @@ label {
 .no-saved-states .hint {
   font-size: 12px;
   margin-top: 8px;
-  opacity: 0.8;
+  color: var(--text-muted);
 }
