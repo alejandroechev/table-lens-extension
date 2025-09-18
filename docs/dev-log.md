@@ -1,5 +1,16 @@
 #### Recent Development Progress (September 2025)
 
+##### UI Enhancement: Header Action Buttons
+- **Moved Primary Actions to Header**: Relocated "Create Chart" and "Save Workspace" buttons from data toolbar to main header bar
+  - **Better Accessibility**: Primary actions now always visible regardless of active tab
+  - **Cleaner Data Toolbar**: Reduced clutter in data view, focusing on data-specific actions (Export CSV/TSV, Reset Filters)
+  - **Improved UX**: Actions available from any tab (data, charts) without switching views
+  - **Visual Consistency**: Header buttons use same glass-morphism styling as theme toggle
+  - **Renamed Save Button**: Changed from "💾 Save" to "💾 Save Workspace" for clarity about functionality
+- **Header Actions Styling**: Added dedicated `.header-actions` container with consistent spacing and hover effects
+- **Responsive Design**: Header buttons maintain proper spacing and alignment across different screen sizes
+- **Enhanced Tooltips**: Updated button titles to provide clearer context about functionality
+
 #### Save Functionality & Chart Auto-Loading Fixes
 - **Fixed Save Button**: Corrected HTML/JS mismatch where button had `id="saveStateBtn"` but code looked for `getElementById('saveState')`
 - **Fixed Cross-Page Saved State Loading**: Resolved issue where saved states only loaded from the original page where table was extracted

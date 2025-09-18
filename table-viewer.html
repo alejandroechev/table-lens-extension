@@ -109,6 +109,42 @@
       margin-top: 2px;
     }
 
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .header-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    .header-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .header-btn:disabled:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: none;
+    }
+
     .theme-toggle {
       background: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.3);
@@ -937,9 +973,17 @@
         <h1 id="headerTitle">📊 Table Viewer</h1>
         <div class="table-info" id="tableInfo">Loading table data...</div>
       </div>
-      <button id="themeToggle" class="theme-toggle" title="Toggle dark/light theme">
-        <span class="theme-icon">🌙</span>
-      </button>
+      <div class="header-actions">
+        <button id="newChartBtn" class="header-btn" title="Create a new chart from this table data">
+          📊 Create Chart
+        </button>
+        <button id="saveStateBtn" class="header-btn" title="Save current workspace with a custom name">
+          💾 Save Workspace
+        </button>
+        <button id="themeToggle" class="theme-toggle" title="Toggle dark/light theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+      </div>
     </div>
   </div>
   
@@ -954,17 +998,11 @@
       <div class="tab-panel active" id="data-panel">
         <div class="data-toolbar">
           <div class="toolbar-left">
-            <button id="newChartBtn" class="btn btn-primary btn-sm" title="Create a new chart from this table data">
-              📊 Create Chart
-            </button>
             <button id="exportCSV" class="btn btn-secondary btn-sm">
               📄 Export CSV
             </button>
             <button id="exportTSV" class="btn btn-secondary btn-sm">
               📋 Export TSV
-            </button>
-            <button id="saveStateBtn" class="btn btn-success btn-sm" title="Save current table state with a custom name">
-              💾 Save
             </button>
           </div>
           <div class="toolbar-right">
