@@ -14,6 +14,11 @@
 - **Clean CSS Architecture**: Replaced flexible control groups with simple left/right toolbar sections using flexbox
 - **Maintained Functionality**: All existing features preserved with improved accessibility and discoverability
 - **Export Fix**: Resolved duplicate download issue by moving export event listeners from `attachFilterEventListeners()` to main `attachEventListeners()` method to prevent multiple listener attachments
+- **Scatter Plot X-axis Fix**: Fixed scatter plot X-axis range issue where axis always showed 0-1 instead of actual data range
+  - Root cause: Scatter plots require `{x, y}` data point objects but were receiving separate labels and values arrays like other chart types
+  - Solution: Added special handling in `processChartData()` method for scatter plots to format data as coordinate pairs
+  - Both X and Y values now properly parsed as numeric values using `parseNumericValue()` method
+  - X-axis now automatically scales to the actual data range from selected column
 
 #### Table State Persistence System
 - **Session Storage Integration**: Complete state management system for table viewer sessions

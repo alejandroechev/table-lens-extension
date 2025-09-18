@@ -2018,13 +2018,36 @@ class TableViewer {
     const headers = this.tableData[0];
     const rows = this.tableData.slice(1);
     
-    // Extract labels (X-axis data)
+    // Special handling for scatter plots
+    if (chartType === 'scatter') {
+      const datasets = yColumns.map((yCol, index) => {
+        const columnName = headers[yCol] || `Column ${yCol + 1}`;
+        const dataPoints = rows.map(row => ({
+          x: this.parseNumericValue(row[xColumn], xColumn),
+          y: this.parseNumericValue(row[yCol], yCol)
+        }));
+        
+        return {
+          label: columnName,
+          data: dataPoints,
+          backgroundColor: this.generateColors(1, index),
+          borderColor: this.generateBorderColors(1, index),
+          borderWidth: 1,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        };
+      });
+      
+      return { datasets };
+    }
+    
+    // Default handling for other chart types
     const labels = rows.map(row => row[xColumn] || '');
     
     // Extract datasets (Y-axis data)
     const datasets = yColumns.map((yCol, index) => {
       const columnName = headers[yCol] || `Column ${yCol + 1}`;
-  const values = rows.map(row => this.parseNumericValue(row[yCol], yCol));
+      const values = rows.map(row => this.parseNumericValue(row[yCol], yCol));
       
       return {
         label: columnName,
