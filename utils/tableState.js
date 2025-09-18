@@ -205,6 +205,16 @@ class TableStateManager {
   async recreateChart(tableViewer, chartState) {
     const chartId = chartState.id;
     
+    // Pre-populate chartConfigs BEFORE creating DOM elements
+    // This prevents autoSelectSmartDefaults from overriding our saved values
+    if (!tableViewer.chartConfigs) tableViewer.chartConfigs = {};
+    tableViewer.chartConfigs[chartId] = {
+      chartType: chartState.config.chartType,
+      xColumn: chartState.config.xColumn,
+      yColumns: [...(chartState.config.yColumns || [])]
+    };
+    console.log('Pre-populated chartConfigs for', chartId, ':', tableViewer.chartConfigs[chartId]);
+    
     // Create tab - chartState.name should already be clean (no emoji/close button)
     const tab = document.createElement('button');
     tab.className = 'tab';
@@ -225,7 +235,6 @@ class TableStateManager {
 
     // Restore chart configuration
     const typeSelect = document.getElementById(`${chartId}-type`);
-    const xAxisSelect = document.getElementById(`${chartId}-x`);
     
     if (typeSelect && chartState.config.chartType) {
       typeSelect.value = chartState.config.chartType;
@@ -235,6 +244,7 @@ class TableStateManager {
     // Small delay to ensure axis controls are created
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    const xAxisSelect = document.getElementById(`${chartId}-x`);
     if (xAxisSelect && chartState.config.xColumn !== null && chartState.config.xColumn !== undefined && !isNaN(chartState.config.xColumn)) {
       xAxisSelect.value = chartState.config.xColumn.toString();
     }
@@ -265,6 +275,7 @@ class TableStateManager {
     await new Promise(resolve => setTimeout(resolve, 200));
 
     // Generate the chart with restored configuration
+    // The chart will use the pre-populated chartConfigs instead of reading from DOM
     try {
       tableViewer.generateChart(chartId);
       console.log(`✅ Restored chart ${chartId}`);

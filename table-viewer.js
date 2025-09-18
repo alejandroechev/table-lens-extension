@@ -1419,10 +1419,7 @@ class TableViewer {
     try {
       if (!window.TableStats) throw new Error('Stats library not loaded');
       if (columnType === 'numeric' || columnType === 'money' || columnType === 'percentage') {
-        console.log(`📈 Computing stats for column ${columnIndex} (${statFunction})`);
-        console.log(`📝 Raw values:`, values.slice(0, 5));
         const numericValues = values.map(v => this.parseNumericValue(v, columnIndex)).filter(v => !isNaN(v));
-        console.log(`🔢 Parsed numeric values:`, numericValues.slice(0, 5));
         let raw = window.TableStats.computeNumericStatsFromNumbers(numericValues, statFunction);
         const fmt = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
         
@@ -1957,34 +1954,51 @@ class TableViewer {
     };
     
     try {
-      // Get configuration
-      const chartType = elements.type.value;
-      const chartDef = this.chartTypeDefinitions[chartType];
-      const xColumn = parseInt(elements.xAxis.value);
+      // Check if we have pre-configured chart values (during restoration)
+      const existingConfig = this.chartConfigs && this.chartConfigs[chartId];
+      let chartType, xColumn, yColumns;
       
-      // Handle Y-axis columns based on chart type
-      let yColumns = [];
-      if (chartDef && chartDef.yAxis) {
-        if (chartDef.yAxis.multiple && elements.yCheckboxes) {
-          // Multiple selection (checkboxes) - for line, bar, etc.
-          const checkedInputs = elements.yCheckboxes.querySelectorAll('input:checked');
-          yColumns = Array.from(checkedInputs).map(cb => parseInt(cb.value));
-        } else if (!chartDef.yAxis.multiple && elements.ySingle) {
-          // Single selection (dropdown) - for pie, doughnut, scatter
-          const selectedValue = elements.ySingle.value;
-          if (selectedValue && selectedValue !== '') {
-            yColumns = [parseInt(selectedValue)];
+      if (existingConfig) {
+        // Use pre-configured values during restoration
+        console.log('🔄 Using pre-configured chart values during restoration:', existingConfig);
+        chartType = existingConfig.chartType;
+        xColumn = existingConfig.xColumn;
+        yColumns = [...existingConfig.yColumns];
+        
+        // Validate the pre-configured values
+        if (isNaN(xColumn) || xColumn < 0 || yColumns.length === 0) {
+          throw new Error('Invalid pre-configured chart values');
+        }
+      } else {
+        // Extract configuration from DOM elements (normal user interaction)
+        chartType = elements.type.value;
+        const chartDef = this.chartTypeDefinitions[chartType];
+        xColumn = parseInt(elements.xAxis.value);
+        
+        // Handle Y-axis columns based on chart type
+        yColumns = [];
+        if (chartDef && chartDef.yAxis) {
+          if (chartDef.yAxis.multiple && elements.yCheckboxes) {
+            // Multiple selection (checkboxes) - for line, bar, etc.
+            const checkedInputs = elements.yCheckboxes.querySelectorAll('input:checked');
+            yColumns = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+          } else if (!chartDef.yAxis.multiple && elements.ySingle) {
+            // Single selection (dropdown) - for pie, doughnut, scatter
+            const selectedValue = elements.ySingle.value;
+            if (selectedValue && selectedValue !== '') {
+              yColumns = [parseInt(selectedValue)];
+            }
           }
         }
-      }
-      
-      // Validate required inputs
-      if (isNaN(xColumn) || xColumn < 0) {
-        throw new Error('Please select a valid X-axis column');
-      }
-      
-      if (yColumns.length === 0) {
-        throw new Error('Please select at least one Y-axis column');
+        
+        // Validate required inputs
+        if (isNaN(xColumn) || xColumn < 0) {
+          throw new Error('Please select a valid X-axis column');
+        }
+        
+        if (yColumns.length === 0) {
+          throw new Error('Please select at least one Y-axis column');
+        }
       }
       
       // Destroy existing chart
@@ -2080,7 +2094,6 @@ class TableViewer {
     if (value === null || value === undefined || value === '') return 0;
     const str = String(value).trim();
     const fmt = this.numericFormatMap[columnIndex] || { thousand: ',', decimal: '.' };
-    console.log(`🧮 Parsing "${str}" (col ${columnIndex}) with format:`, fmt);
     
     // Remove currency symbols and percent and trim
     let cleaned = str.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/g,'').replace(/%/g,'').trim();
@@ -2114,7 +2127,6 @@ class TableViewer {
     
     const num = parseFloat(normalized) * sign;
     const result = isNaN(num) ? 0 : num;
-    console.log(`✅ Parse result: "${str}" → ${result} (cleaned: "${normalized}")`);
     return result;
   }
   
