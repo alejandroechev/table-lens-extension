@@ -204,42 +204,34 @@
     }
 
     /* Data Tab Styles */
-    .data-controls {
+    .data-toolbar {
       background: var(--bg-quaternary);
-      padding: 15px;
+      padding: 8px 15px;
       margin-bottom: 15px;
       border-radius: 6px;
       border: 1px solid var(--border-primary);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      align-items: center;
-    }
-    
-    .data-controls .control-group label {
-      font-weight: 500;
-      font-size: 13px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-    }
-
-    /* Data Actions */
-    .data-actions {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--bg-quaternary);
-      padding: 10px 15px;
-      margin-bottom: 15px;
-      border-radius: 6px;
-      border: 1px solid var(--border-primary);
+      min-height: 40px;
     }
-
-    .filter-actions,
-    .export-actions {
+    
+    .toolbar-left,
+    .toolbar-right {
       display: flex;
       gap: 10px;
+      align-items: center;
     }
+    
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+
 
     /* Filter Buttons in Table Headers */
     .data-table th {
@@ -582,33 +574,7 @@
       text-align: center;
     }
 
-    .new-chart-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      min-width: 140px;
-      height: 48px;
-      border-radius: 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      transition: all 0.2s ease;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0 20px;
-    }
 
-    .new-chart-btn:hover {
-      transform: scale(1.1) translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    }
 
     .status-message {
       padding: 10px 15px;
@@ -914,24 +880,22 @@
     
     <div class="tab-content">
       <div class="tab-panel active" id="data-panel">
-        <div class="data-controls">
-          <div class="control-group">
-            <label for="filterColumn">Filter by:</label>
-            <select id="filterColumn" class="form-control">
-              <option value="">All columns</option>
-            </select>
+        <div class="data-toolbar">
+          <div class="toolbar-left">
+            <button id="newChartBtn" class="btn btn-primary btn-sm" title="Create a new chart from this table data">
+              📊 Create Chart
+            </button>
+            <button id="exportCSV" class="btn btn-secondary btn-sm">
+              📄 Export CSV
+            </button>
+            <button id="exportTSV" class="btn btn-secondary btn-sm">
+              📋 Export TSV
+            </button>
           </div>
-          <div class="control-group">
-            <label for="filterValue">Contains:</label>
-            <input type="text" id="filterValue" class="form-control" placeholder="Filter text...">
-          </div>
-          <div class="control-group">
-            <button id="clearFilter" class="btn btn-secondary">Clear</button>
-            <button id="resetSort" class="btn btn-secondary">Reset Sort</button>
-          </div>
-          <div class="export-buttons">
-            <button id="exportCSV" class="btn btn-primary">📄 Export CSV</button>
-            <button id="exportTSV" class="btn btn-secondary">📋 Export TSV</button>
+          <div class="toolbar-right">
+            <button id="resetFiltersAndSort" class="btn btn-secondary btn-sm" title="Reset all filters and sorting">
+              🔄 Reset Filters & Sorting
+            </button>
           </div>
         </div>
         
@@ -945,10 +909,7 @@
     </div>
   </div>
   
-  <button class="new-chart-btn" id="newChartBtn" title="Create a new chart from this table data">
-    <span>📊</span>
-    <span>Create Chart</span>
-  </button>
+
   
   <script src="libs/chart.umd.js"></script>
   <script src="utils/columnTypes.js"></script>

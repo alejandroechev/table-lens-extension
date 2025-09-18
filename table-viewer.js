@@ -134,13 +134,12 @@ class TableViewer {
       dataTable: document.getElementById('dataTable'),
       dataTableHead: document.getElementById('dataTableHead'),
       dataTableBody: document.getElementById('dataTableBody'),
-      dataControls: document.querySelector('.data-controls'),
+      dataToolbar: document.querySelector('.data-toolbar'),
       newChartBtn: document.getElementById('newChartBtn'),
       // Data controls
       filterColumn: document.getElementById('filterColumn'),
       filterValue: document.getElementById('filterValue'),
-      clearFilter: document.getElementById('clearFilter'),
-      resetSort: document.getElementById('resetSort'),
+      resetFiltersAndSort: document.getElementById('resetFiltersAndSort'),
       exportCSV: document.getElementById('exportCSV'),
       exportTSV: document.getElementById('exportTSV')
     };
@@ -153,7 +152,15 @@ class TableViewer {
     this.elements.newChartBtn.addEventListener('click', () => this.createNewChart());
     this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     
-    // Note: Individual filter event listeners are now attached in attachFilterEventListeners()
+    // Export buttons (static HTML, only attach once)
+    if (this.elements.exportCSV) {
+      this.elements.exportCSV.addEventListener('click', () => this.exportData('csv'));
+    }
+    if (this.elements.exportTSV) {
+      this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    }
+    
+    // Note: Filter event listeners are attached in attachFilterEventListeners()
     // which is called from setupDataControls()
     
     // Handle tab clicks with event delegation
@@ -671,22 +678,7 @@ class TableViewer {
   }
   
   setupDataControls() {
-    const controlsHTML = `
-      <div class="data-actions">
-        <div class="filter-actions">
-          <button id="clearAllFilters" class="btn btn-secondary btn-sm">Clear All Filters</button>
-          <button id="resetSort" class="btn btn-secondary btn-sm">Reset Sort</button>
-        </div>
-        <div class="export-actions">
-          <button id="exportCSV" class="btn btn-primary btn-sm">Export CSV</button>
-          <button id="exportTSV" class="btn btn-primary btn-sm">Export TSV</button>
-        </div>
-      </div>
-    `;
-    
-    this.elements.dataControls.innerHTML = controlsHTML;
-
-    // Reattach event listeners for new elements
+    // The toolbar is now static in HTML, just attach event listeners
     this.attachFilterEventListeners();
   }
 
@@ -1076,23 +1068,13 @@ class TableViewer {
    * Attach event listeners to the new filter controls
    */
   attachFilterEventListeners() {
-    // Clear all filters
-    const clearAllBtn = document.getElementById('clearAllFilters');
-    if (clearAllBtn) {
-      clearAllBtn.addEventListener('click', () => this.clearAllFilters());
+    // Combined reset filters and sort
+    const resetFiltersAndSortBtn = document.getElementById('resetFiltersAndSort');
+    if (resetFiltersAndSortBtn) {
+      resetFiltersAndSortBtn.addEventListener('click', () => this.resetFiltersAndSort());
     }
     
-    // Reset sort
-    const resetSortBtn = document.getElementById('resetSort');
-    if (resetSortBtn) {
-      resetSortBtn.addEventListener('click', () => this.resetSort());
-    }
-    
-    // Export buttons
-    const exportCSV = document.getElementById('exportCSV');
-    const exportTSV = document.getElementById('exportTSV');
-    if (exportCSV) exportCSV.addEventListener('click', () => this.exportData('csv'));
-    if (exportTSV) exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    // Note: Export buttons are now handled in main attachEventListeners() to prevent duplicates
     
     // Close popup when clicking outside
     document.addEventListener('click', (e) => {
@@ -1935,6 +1917,18 @@ class TableViewer {
     this.currentSort = { column: -1, direction: 'none' };
     this.filteredData = [...this.originalData];
     this.applyFilter(); // Reapply any active filters
+  }
+  
+  /**
+   * Combined method to reset both filters and sorting
+   */
+  resetFiltersAndSort() {
+    // Clear all filters first
+    this.clearAllFilters();
+    // Reset sorting
+    this.resetSort();
+    // Save the cleared state
+    this.saveState();
   }
   
   generateChart(chartId) {
