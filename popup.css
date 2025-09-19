@@ -364,6 +364,24 @@ label {
   border: 1px solid var(--border-primary);
 }
 
+.btn-success {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #218838, #1ca085);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.btn-success:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-secondary);

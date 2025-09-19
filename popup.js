@@ -27,6 +27,7 @@ class PopupController {
       ocrCapture: document.getElementById('ocrCapture'),
       imageCapture: document.getElementById('imageCapture'),
       allTables: document.getElementById('allTables'),
+      exportAllTablesXLSX: document.getElementById('exportAllTablesXLSX'),
       savedStatesList: document.getElementById('savedStatesList'),
       generateChart: document.getElementById('generateChart'),
       exportPNG: document.getElementById('exportPNG'),
@@ -41,6 +42,7 @@ class PopupController {
     this.elements.ocrCapture.addEventListener('click', () => this.startOCRCapture());
     this.elements.imageCapture.addEventListener('click', () => this.startImageCapture());
     this.elements.allTables.addEventListener('click', () => this.startAllTablesExtraction());
+    this.elements.exportAllTablesXLSX.addEventListener('click', () => this.exportAllTablesToXLSX());
     this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     if (this.elements.tableSearch) {
       this.elements.tableSearch.addEventListener('input', () => this.renderTableList());
@@ -425,6 +427,10 @@ class PopupController {
       `;
       
       this.elements.chartOptions.style.display = 'none';
+      // Hide export button when no tables
+      if (this.elements.exportAllTablesXLSX) {
+        this.elements.exportAllTablesXLSX.style.display = 'none';
+      }
       return;
     }
     const q = (this.elements.tableSearch?.value || '').trim().toLowerCase();
@@ -466,6 +472,11 @@ class PopupController {
         this.openTableViewer(index);
       });
     });
+    
+    // Show export button when tables are available
+    if (this.elements.exportAllTablesXLSX && this.tables.length > 0) {
+      this.elements.exportAllTablesXLSX.style.display = 'inline-block';
+    }
   }
   
   getTableTypeDisplay(type) {
@@ -744,6 +755,126 @@ class PopupController {
   
   hideStatus() {
     this.elements.status.style.display = 'none';
+  }
+
+  /**
+   * Export all detected tables to a single XLSX file with multiple sheets
+   */
+  async exportAllTablesToXLSX() {
+    if (!this.tables || this.tables.length === 0) {
+      this.showStatus('No tables available to export', 'error');
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      this.showStatus('XLSX library not loaded. Please refresh the page.', 'error');
+      return;
+    }
+
+    this.showStatus('Exporting all tables to XLSX...', 'info');
+
+    try {
+      // Get current active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      // Get all table data from content script
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'getAllTablesData'
+      });
+
+      if (!response || !response.success) {
+        this.showStatus('Failed to get table data from page', 'error');
+        return;
+      }
+
+      // Create a new workbook
+      const wb = XLSX.utils.book_new();
+      
+      let successCount = 0;
+      
+      // Process each table
+      for (let i = 0; i < this.tables.length && i < response.tables.length; i++) {
+        const table = this.tables[i];
+        const tableData = response.tables.find(t => t.id === table.id);
+        
+        if (!tableData || !tableData.data || tableData.data.length === 0) {
+          console.warn(`Skipping table ${i + 1}: No data available`);
+          continue;
+        }
+
+        // Create worksheet from table data
+        const ws = XLSX.utils.aoa_to_sheet(tableData.data);
+        
+        // Create a safe sheet name (max 31 chars, no special chars)
+        let sheetName = `Table_${i + 1}`;
+        if (table.source && typeof table.source === 'string') {
+          // Use table source/title if available, sanitized
+          const cleanSource = table.source
+            .replace(/[\\/*?:[\\]]/g, '') // Remove invalid characters
+            .substring(0, 20); // Limit length
+          if (cleanSource) {
+            sheetName = `${cleanSource}_${i + 1}`;
+          }
+        }
+        
+        // Ensure unique sheet name (Excel requirement)
+        let finalSheetName = sheetName.substring(0, 31);
+        let counter = 1;
+        while (wb.SheetNames.includes(finalSheetName)) {
+          const suffix = `_${counter}`;
+          finalSheetName = sheetName.substring(0, 31 - suffix.length) + suffix;
+          counter++;
+        }
+        
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, finalSheetName);
+        successCount++;
+      }
+
+      if (successCount === 0) {
+        this.showStatus('No valid table data found to export', 'error');
+        return;
+      }
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const siteName = this.getSiteName(tab.url);
+      const fileName = `${siteName}_all_tables_${timestamp}.xlsx`;
+
+      // Write and download the file
+      XLSX.writeFile(wb, fileName);
+
+      this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
+      setTimeout(() => this.hideStatus(), 3000);
+
+    } catch (error) {
+      console.error('XLSX export error:', error);
+      this.showStatus(`Error exporting to XLSX: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Extract a clean site name from URL for filename
+   */
+  getSiteName(url) {
+    try {
+      const urlObj = new URL(url);
+      let hostname = urlObj.hostname;
+      
+      // Remove common prefixes
+      hostname = hostname.replace(/^www\./, '');
+      
+      // Take only the domain name (before first dot if multiple parts)
+      const parts = hostname.split('.');
+      if (parts.length > 2) {
+        return parts[0];
+      }
+      
+      // Return domain without extension
+      return parts[0] || 'webpage';
+    } catch (error) {
+      return 'webpage';
+    }
   }
   
   // Clear all stored tables for the current page

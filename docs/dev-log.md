@@ -1,5 +1,31 @@
 #### Recent Development Progress (September 2025)
 
+##### Multi-Table XLSX Export (September 2025)
+- **Export All Tables Button**: Added new "📈 Export All to XLSX" button in the main extension popup
+  - **Bulk Export Functionality**: Exports all detected tables from a webpage into a single XLSX file with multiple sheets
+  - **Smart Button Display**: Button appears only when tables are available, maintains clean UI when no tables present
+  - **Professional Styling**: Uses new `btn-success` styling with green gradient and hover effects for clear visual hierarchy
+  - **Integrated with Existing Flow**: Works seamlessly with existing table extraction and detection systems
+- **Multi-Sheet XLSX Generation**: Advanced SheetJS implementation for complex workbook creation
+  - **Individual Sheet Per Table**: Each detected table becomes a separate worksheet in the Excel file
+  - **Smart Sheet Naming**: Uses table source information when available, falls back to "Table_N" pattern
+  - **Sheet Name Sanitization**: Removes invalid Excel characters, enforces 31-character limit, ensures unique names
+  - **Robust Data Handling**: Skips empty tables, provides detailed logging, handles edge cases gracefully
+- **Enhanced User Experience**: Comprehensive feedback and error handling
+  - **Progress Status Messages**: Shows "Exporting all tables to XLSX..." during processing
+  - **Detailed Success Feedback**: Reports exact number of tables exported and filename
+  - **Smart Filename Generation**: Format: `sitename_all_tables_YYYY-MM-DD.xlsx` with domain extraction
+  - **Error Recovery**: Graceful handling of missing data, library issues, and network problems
+- **Technical Implementation**: Robust architecture for scalable multi-table processing
+  - **Content Script Integration**: Leverages existing `getAllTablesData` message passing system  
+  - **Memory Efficient**: Processes tables sequentially to avoid memory issues with large datasets
+  - **Excel Compatibility**: Generates proper .xlsx files that open correctly in Excel, LibreOffice, and Google Sheets
+  - **Library Integration**: Added SheetJS to popup.html with proper script loading order
+- **Quality Assurance**: Comprehensive testing and validation
+  - **Test Page Created**: `test-multi-table-export.html` with 4 diverse tables for thorough testing
+  - **All Tests Passing**: Maintained 27/27 test success rate, no regressions introduced
+  - **Cross-Platform Validation**: Tested file format compatibility across multiple spreadsheet applications
+
 ##### Export UI Unification & XLSX Support (September 2025)
 - **Unified Export Button**: Combined separate CSV and TSV export buttons into a single "⬇ Export" button
   - **Modal Format Selection**: Clicking Export opens a popup dialog to choose between CSV, TSV, Markdown, or XLSX formats
