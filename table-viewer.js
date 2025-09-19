@@ -139,8 +139,7 @@ class TableViewer {
       filterColumn: document.getElementById('filterColumn'),
       filterValue: document.getElementById('filterValue'),
       resetFiltersAndSort: document.getElementById('resetFiltersAndSort'),
-      exportCSV: document.getElementById('exportCSV'),
-      exportTSV: document.getElementById('exportTSV'),
+      exportData: document.getElementById('exportData'),
       saveState: document.getElementById('saveStateBtn')
     };
     
@@ -152,12 +151,9 @@ class TableViewer {
     this.elements.newChartBtn.addEventListener('click', () => this.createNewChart());
     this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
     
-    // Export buttons (static HTML, only attach once)
-    if (this.elements.exportCSV) {
-      this.elements.exportCSV.addEventListener('click', () => this.exportData('csv'));
-    }
-    if (this.elements.exportTSV) {
-      this.elements.exportTSV.addEventListener('click', () => this.exportData('tsv'));
+    // Export button (static HTML, only attach once)
+    if (this.elements.exportData) {
+      this.elements.exportData.addEventListener('click', () => this.showExportFormatModal());
     }
     
   // Save button
@@ -2583,6 +2579,72 @@ class TableViewer {
   }
 
   /**
+   * Show export format selection modal
+   */
+  showExportFormatModal() {
+    const modal = document.getElementById('exportFormatModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      
+      // Focus on the first radio button for accessibility
+      const firstRadio = modal.querySelector('input[type="radio"]');
+      if (firstRadio) firstRadio.focus();
+      
+      // Add event listeners for modal interactions
+      this.attachExportModalListeners(modal);
+    }
+  }
+
+  /**
+   * Attach event listeners for export modal
+   */
+  attachExportModalListeners(modal) {
+    // Close on escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.closeExportFormatModal();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
+    // Close when clicking on backdrop
+    const clickHandler = (e) => {
+      if (e.target === modal) {
+        this.closeExportFormatModal();
+        modal.removeEventListener('click', clickHandler);
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    modal.addEventListener('click', clickHandler);
+  }
+
+  /**
+   * Close export format modal
+   */
+  closeExportFormatModal() {
+    const modal = document.getElementById('exportFormatModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Confirm export format selection and trigger export
+   */
+  confirmExportFormat() {
+    const modal = document.getElementById('exportFormatModal');
+    if (!modal) return;
+    
+    const selectedFormat = modal.querySelector('input[name="exportFormat"]:checked');
+    if (selectedFormat) {
+      const format = selectedFormat.value;
+      this.closeExportFormatModal();
+      this.exportData(format);
+    }
+  }
+
+  /**
   * Show dialog to save current table & charts with a name
    */
   showSaveStateDialog() {
@@ -2783,6 +2845,16 @@ document.addEventListener('DOMContentLoaded', () => {
   tableViewer = new TableViewer();
   // Make tableViewer globally accessible for chart export buttons
   window.tableViewer = tableViewer;
+
+  // Hook export format modal buttons (added via HTML, no inline handlers due to CSP)
+  const cancelBtn = document.getElementById('exportFormatCancel');
+  const confirmBtn = document.getElementById('exportFormatConfirm');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => tableViewer.closeExportFormatModal());
+  }
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => tableViewer.confirmExportFormat());
+  }
 });
 
 // Handle page cleanup

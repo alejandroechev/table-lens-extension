@@ -1,5 +1,19 @@
 #### Recent Development Progress (September 2025)
 
+##### Export UI Unification (September 2025)
+- **Unified Export Button**: Combined separate CSV and TSV export buttons into a single "📄 Export" button
+  - **Modal Format Selection**: Clicking Export opens a popup dialog to choose between CSV or TSV formats
+  - **Consistent UI Pattern**: Reused existing modal styling patterns from type editor and save state modals
+  - **Improved User Experience**: Reduced toolbar clutter while maintaining full functionality
+  - **Accessibility Features**: Modal supports keyboard navigation (Escape to close, focus management)
+  - **Click-outside-to-close**: Users can dismiss modal by clicking on backdrop area
+- **Modal Implementation**: Added `exportFormatModal` with radio button selection for CSV/TSV
+  - **Clean CSS Styling**: Modal uses existing CSS variables and follows established design patterns
+  - **JavaScript Methods**: Added `showExportFormatModal()`, `closeExportFormatModal()`, and `confirmExportFormat()`
+  - **Event Handling**: Proper event listener management with cleanup on modal close
+  - **Maintained Functionality**: All existing export features preserved, just reorganized into better UI
+- **Test Coverage**: Created test page to verify export modal functionality and user interaction flow
+
 ##### Column Type Detection Simplification (September 2025)
 - **Simplified Detection Rules**: Completely rewrote column type detection logic to focus solely on data content
   - **Rule-Based Approach**: Eliminated complex threshold-based detection in favor of clear, simple rules
