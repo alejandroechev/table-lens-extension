@@ -1537,15 +1537,39 @@ class TableViewer {
   
   exportData(format) {
     if (!this.filteredData || this.filteredData.length === 0) return;
-    
+
+    if (format === 'md') {
+      // Markdown table export
+      const headers = this.filteredData[0];
+      const rows = this.filteredData.slice(1);
+      const escapeCell = (v) => {
+        const s = (v == null ? '' : v.toString()).replace(/\|/g, '\\|');
+        return s.replace(/\r?\n/g, ' ');
+      };
+      const headerLine = `| ${headers.map(escapeCell).join(' | ')} |`;
+      const alignLine = `| ${headers.map(()=>'---').join(' | ')} |`;
+      const rowLines = rows.map(r => `| ${r.map(escapeCell).join(' | ')} |`);
+      const mdContent = [headerLine, alignLine, ...rowLines].join('\n');
+      const blob = new Blob([mdContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const fileName = `table-data-${new Date().toISOString().split('T')[0]}.md`; 
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      this.showGlobalStatus('Data exported as MARKDOWN successfully!', 'success');
+      return;
+    }
+
     const separator = format === 'tsv' ? '\t' : ',';
     const extension = format === 'tsv' ? 'tsv' : 'csv';
     const mimeType = format === 'tsv' ? 'text/tab-separated-values' : 'text/csv';
-    
-    // Convert data to CSV/TSV format
-    const csvContent = this.filteredData.map(row => 
+
+    const textContent = this.filteredData.map(row =>
       row.map(cell => {
-        // Escape quotes and wrap in quotes if necessary
         const cellStr = (cell || '').toString();
         if (cellStr.includes(separator) || cellStr.includes('"') || cellStr.includes('\n')) {
           return `"${cellStr.replace(/"/g, '""')}"`;
@@ -1553,12 +1577,10 @@ class TableViewer {
         return cellStr;
       }).join(separator)
     ).join('\n');
-    
-    // Create and trigger download
-    const blob = new Blob([csvContent], { type: mimeType });
+
+    const blob = new Blob([textContent], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
     const fileName = `table-data-${new Date().toISOString().split('T')[0]}.${extension}`;
     link.href = url;
     link.download = fileName;
@@ -1566,8 +1588,6 @@ class TableViewer {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
-    // Show success message
     this.showGlobalStatus(`Data exported as ${extension.toUpperCase()} successfully!`, 'success');
   }
   

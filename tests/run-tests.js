@@ -25,6 +25,12 @@ try {
   console.error('Failed loading column type detection tests', e);
 }
 try {
+  const collectionExport = require('./exportFormats.test.js');
+  tests = tests.concat(collectionExport);
+} catch (e) {
+  console.error('Failed loading export formats tests', e);
+}
+try {
   const collection6 = require('./nestedTables.test.js');
   tests = tests.concat(collection6);
 } catch (e) {
