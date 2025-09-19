@@ -2087,8 +2087,8 @@ class TableViewer {
   }
   
   processChartData(xColumn, yColumns, chartType) {
-    const headers = this.tableData[0];
-    const rows = this.tableData.slice(1);
+    const headers = this.filteredData[0];
+    const rows = this.filteredData.slice(1);
     
     // Special handling for scatter plots
     if (chartType === 'scatter') {
@@ -2298,7 +2298,7 @@ class TableViewer {
   }
 
   createChartConfig(chartType, chartData, xColumn, yColumns) {
-    const headers = this.tableData[0];
+    const headers = this.filteredData[0];
     
     const baseConfig = {
       type: chartType === 'horizontalBar' ? 'bar' : chartType,
@@ -2335,7 +2335,7 @@ class TableViewer {
   }
   
   generateChartTitle(chartType, xColumn, yColumns) {
-    const headers = this.tableData[0];
+    const headers = this.filteredData[0];
     const chartTypeNames = {
       line: 'Line Chart',
       bar: 'Bar Chart', 
@@ -2910,3 +2910,8 @@ window.addEventListener('beforeunload', () => {
     tableViewer.charts.forEach(chart => chart.destroy());
   }
 });
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { TableViewer };
+}
