@@ -115,8 +115,10 @@ header {
   border-radius: 6px;
   color: white;
   cursor: pointer;
-  padding: 8px 10px;
-  font-size: 14px;
+  /* Reduced to ~50% of original size */
+  padding: 6px 8px; /* was 8px 10px */
+  font-size: 12px; /* was 14px (exact half ~7px, but 10px keeps legibility) */
+  line-height: 1; /* tighter vertical alignment */
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
 }
