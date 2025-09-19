@@ -1681,8 +1681,8 @@ class TableViewer {
       
       <div class="chart-container" id="${chartId}-container">
         <div class="chart-export-buttons">
-          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'png')">PNG</button>
-          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'svg')">SVG</button>
+          <button class="export-btn" data-chart-id="${chartId}" data-format="png">PNG</button>
+          <button class="export-btn" data-chart-id="${chartId}" data-format="svg">SVG</button>
         </div>
         <div class="chart-placeholder">
           Select a chart type and configure the axes to create your visualization.
@@ -1709,6 +1709,21 @@ class TableViewer {
     generateBtn.addEventListener('click', () => {
       this.generateChart(chartId);
     });
+
+    // Add event listeners for export buttons (in case they exist from initial HTML)
+    const container = document.getElementById(`${chartId}-container`);
+    if (container) {
+      const exportButtons = container.querySelectorAll('.export-btn');
+      exportButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          const chartId = e.target.getAttribute('data-chart-id');
+          const format = e.target.getAttribute('data-format');
+          if (chartId && format) {
+            this.exportChart(chartId, format);
+          }
+        });
+      });
+    }
   }
   
   getValidColumnsForAxis(axisRequirements) {
@@ -2057,11 +2072,21 @@ class TableViewer {
       // Create canvas
       elements.container.innerHTML = `
         <div class="chart-export-buttons">
-          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'png')">PNG</button>
-          <button class="export-btn" onclick="tableViewer.exportChart('${chartId}', 'svg')">SVG</button>
+          <button class="export-btn" data-chart-id="${chartId}" data-format="png">PNG</button>
+          <button class="export-btn" data-chart-id="${chartId}" data-format="svg">SVG</button>
         </div>
         <canvas id="${chartId}-canvas" width="800" height="400"></canvas>
       `;
+      
+      // Add event listeners for export buttons
+      const exportButtons = elements.container.querySelectorAll('.export-btn');
+      exportButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          const chartId = e.target.getAttribute('data-chart-id');
+          const format = e.target.getAttribute('data-format');
+          this.exportChart(chartId, format);
+        });
+      });
       const canvas = document.getElementById(`${chartId}-canvas`);
       const ctx = canvas.getContext('2d');
       

@@ -9,7 +9,6 @@ ToDo:
 - Export all tables in page to xlsx ✅
 - Export workspace with charts to xlsx ❌ (not possible with library)
 - Premium version divide, cap check (15 extractions, 1 save, 1 export XLSX, 1 export all XLSX)
-- Free/Paid versio  compare summary
 - CTA to get paid version (when limit is reached and always)
 
 Super Premium Version (Future):

@@ -1,5 +1,27 @@
 #### Recent Development Progress (September 2025)
 
+##### Chart Export Button Fix (September 2025)
+- **Fixed Non-Working PNG/SVG Export**: Resolved issue where chart export buttons were not responding to clicks
+  - **Root Cause**: Inline onclick handlers were being blocked by Content Security Policy (CSP) in Chrome extension
+  - **Solution**: Replaced `onclick="tableViewer.exportChart(...)"` with proper `addEventListener` event handlers
+  - **Implementation**: Used `data-chart-id` and `data-format` attributes instead of inline JavaScript
+  - **Improved Security**: Eliminates use of inline event handlers that violate CSP policies
+- **Enhanced Chart Generation**: Updated chart creation to use filtered data instead of original table data
+  - **Filtered Data Charts**: Charts now reflect current table filters, showing only visible data
+  - **Method Updates**: Modified `processChartData`, `createChartConfig`, and `generateChartTitle` to use `this.filteredData`
+  - **Consistent Behavior**: Chart data now matches what users see in the filtered table view
+  - **Better User Experience**: Charts automatically update to show filtered results without manual intervention
+- **Technical Implementation**: Comprehensive event listener management for chart controls
+  - **Event Delegation**: Added export button listeners in both `generateChart` and `initializeChartControls` methods
+  - **Data Attributes**: Used `data-chart-id` and `data-format` attributes for clean parameter passing
+  - **Error Handling**: Maintained existing error handling and status message system
+  - **Cross-Browser Compatibility**: Solution works consistently across Chrome, Edge, and other browsers
+- **Testing Infrastructure**: Created comprehensive test suite and validation tools
+  - **Test File**: Added `test-chart-export.html` for manual testing of export functionality
+  - **Quality Assurance**: All 27 existing tests continue to pass with no regressions
+  - **Export Validation**: Both PNG and SVG export formats now work correctly
+  - **User Testing**: Provided clear test instructions and debug output for validation
+
 ##### User-Controlled Table Detection (September 2025)
 - **Removed Automatic Page Load Detection**: Eliminated automatic table detection that occurred when pages loaded
   - **Performance Improvement**: Pages now load faster without immediate table scanning overhead
