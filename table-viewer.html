@@ -1114,6 +1114,11 @@
           <span class="format-label">Markdown</span>
           <span class="format-description">(GitHub-compatible table)</span>
         </label>
+        <label class="export-format-option">
+          <input type="radio" name="exportFormat" value="xlsx">
+          <span class="format-label">Excel</span>
+          <span class="format-description">(XLSX spreadsheet)</span>
+        </label>
       </div>
       <div class="export-format-actions">
         <button id="exportFormatCancel" class="btn btn-secondary">Cancel</button>
@@ -1122,6 +1127,7 @@
     </div>
   </div>
   
+  <script src="libs/xlsx.full.min.js"></script>
   <script src="libs/chart.umd.js"></script>
   <script src="utils/columnTypes.js"></script>
   <script src="utils/stats.js"></script>

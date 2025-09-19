@@ -1538,6 +1538,33 @@ class TableViewer {
   exportData(format) {
     if (!this.filteredData || this.filteredData.length === 0) return;
 
+    if (format === 'xlsx') {
+      // Excel XLSX export using SheetJS
+      try {
+        // Create a new workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Convert filtered data to worksheet
+        const ws = XLSX.utils.aoa_to_sheet(this.filteredData);
+        
+        // Add the worksheet to the workbook
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        
+        // Generate filename
+        const fileName = `table-data-${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // Write and download the file
+        XLSX.writeFile(wb, fileName);
+        
+        this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
+        return;
+      } catch (error) {
+        console.error('XLSX export error:', error);
+        this.showGlobalStatus('Error exporting XLSX: ' + error.message, 'error');
+        return;
+      }
+    }
+
     if (format === 'md') {
       // Markdown table export
       const headers = this.filteredData[0];

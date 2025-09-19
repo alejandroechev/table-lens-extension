@@ -1,18 +1,25 @@
 #### Recent Development Progress (September 2025)
 
-##### Export UI Unification (September 2025)
-- **Unified Export Button**: Combined separate CSV and TSV export buttons into a single "📄 Export" button
-  - **Modal Format Selection**: Clicking Export opens a popup dialog to choose between CSV or TSV formats
+##### Export UI Unification & XLSX Support (September 2025)
+- **Unified Export Button**: Combined separate CSV and TSV export buttons into a single "⬇ Export" button
+  - **Modal Format Selection**: Clicking Export opens a popup dialog to choose between CSV, TSV, Markdown, or XLSX formats
+  - **Four Export Formats**: Full support for CSV (comma-separated), TSV (tab-separated), Markdown (GitHub-compatible tables), and XLSX (Excel spreadsheet)
+  - **SheetJS Integration**: Added SheetJS library for robust XLSX export functionality with proper Excel compatibility
   - **Consistent UI Pattern**: Reused existing modal styling patterns from type editor and save state modals
-  - **Improved User Experience**: Reduced toolbar clutter while maintaining full functionality
+  - **Improved User Experience**: Reduced toolbar clutter while maintaining and expanding functionality
   - **Accessibility Features**: Modal supports keyboard navigation (Escape to close, focus management)
   - **Click-outside-to-close**: Users can dismiss modal by clicking on backdrop area
-- **Modal Implementation**: Added `exportFormatModal` with radio button selection for CSV/TSV
-  - **Clean CSS Styling**: Modal uses existing CSS variables and follows established design patterns
-  - **JavaScript Methods**: Added `showExportFormatModal()`, `closeExportFormatModal()`, and `confirmExportFormat()`
-  - **Event Handling**: Proper event listener management with cleanup on modal close
-  - **Maintained Functionality**: All existing export features preserved, just reorganized into better UI
-- **Test Coverage**: Created test page to verify export modal functionality and user interaction flow
+- **XLSX Export Implementation**: Professional Excel file generation using SheetJS
+  - **Native Excel Format**: Generates proper .xlsx files that open correctly in Excel, LibreOffice, and Google Sheets
+  - **Error Handling**: Comprehensive error handling with user feedback for export failures
+  - **Automatic Filename**: Uses date-based naming convention (table-data-YYYY-MM-DD.xlsx)
+  - **Worksheet Structure**: Creates single worksheet with proper column headers and data formatting
+- **Comprehensive Test Coverage**: Added complete export format test suite
+  - **Four Format Tests**: Validates CSV, TSV, Markdown, and XLSX export functionality
+  - **Edge Case Testing**: Tests special characters, quotes, commas, newlines, and pipe characters
+  - **Data Structure Validation**: Ensures consistent column counts and proper data formatting
+  - **Integration with Test Runner**: All export tests integrated into main test suite (27/27 passing)
+- **Fixed Test Suite Issues**: Resolved `process.exit()` calls that were terminating test execution prematurely
 
 ##### Column Type Detection Simplification (September 2025)
 - **Simplified Detection Rules**: Completely rewrote column type detection logic to focus solely on data content

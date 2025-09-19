@@ -145,10 +145,8 @@ console.log(`📋 Test Summary: ${passedTests}/${totalTests} tests passed`);
 
 if (passedTests === totalTests) {
   console.log('🎉 All tests passed! Column type detection is working correctly.');
-  process.exit(0);
 } else {
   console.log('💥 Some tests failed. Please check the implementation.');
-  process.exit(1);
 }
 
 // Export for test runner compatibility
