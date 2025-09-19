@@ -5,6 +5,7 @@ class PopupController {
     this.selectedTable = null;
     this.tableSearchCache = []; // full-text per table (lowercased)
     this.searchCacheReady = false;
+    this.license = null; // license state
     
     this.initializeElements();
     this.attachEventListeners();
@@ -12,6 +13,7 @@ class PopupController {
   this.restoreExistingTables();
   this.loadSavedStates();
   this.initializeSavedStateListener();
+  this.initializeLicense();
   }
   
   initializeElements() {
@@ -55,6 +57,7 @@ class PopupController {
     this.elements.xColumn.addEventListener('change', () => this.validateChartInputs());
   }  async startAllTablesExtraction() {
     this.showStatus('Detecting content type...', 'info');
+      if (!this.guardExtraction()) return;
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
@@ -167,6 +170,8 @@ class PopupController {
         this.showStatus('No tables found on this webpage', 'error');
       } else {
         this.showStatus(`Found ${this.tables.length} table(s) on webpage`, 'success');
+          // Record usage only if tables were actually found (free tier)
+          await this.recordExtractionUsage(this.tables.length);
         setTimeout(() => this.hideStatus(), 2000);
       }
     } catch (error) {
@@ -761,6 +766,7 @@ class PopupController {
    * Export all detected tables to a single XLSX file with multiple sheets
    */
   async exportAllTablesToXLSX() {
+    if (!this.guardExportAllXLSX()) return;
     if (!this.tables || this.tables.length === 0) {
       this.showStatus('No tables available to export', 'error');
       return;
@@ -846,11 +852,152 @@ class PopupController {
 
       this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
       setTimeout(() => this.hideStatus(), 3000);
+      // Record usage for free tier
+      if (this.licenseManager && !this.licenseManager.isPremium()) {
+        this.licenseManager.markExportAllXLSX();
+        this.updateLicenseUI();
+      }
 
     } catch (error) {
       console.error('XLSX export error:', error);
       this.showStatus(`Error exporting to XLSX: ${error.message}`, 'error');
     }
+  }
+
+  /* ================= License & Feature Gating ================= */
+  async initializeLicense() {
+    try {
+      // Dynamically import license manager
+      const mod = await import(chrome.runtime.getURL('utils/license.js'))
+        .catch(() => null);
+      if (mod && mod.licenseManager) {
+        this.licenseManager = mod.licenseManager;
+      } else if (window.licenseManager) {
+        // Fallback to global
+        this.licenseManager = window.licenseManager;
+      } else {
+        console.warn('License manager not available');
+        return;
+      }
+      await this.licenseManager.init();
+      this.bindLicenseUI();
+      await this.licenseManager.verifyLicense().catch(()=>{});
+      this.updateLicenseUI();
+      // Schedule a second refresh in case async storage resolved late
+      setTimeout(() => this.updateLicenseUI(), 500);
+    } catch (e) {
+      console.error('License init failed', e);
+    }
+  }
+
+  bindLicenseUI() {
+    this.licenseUI = {
+      plan: document.getElementById('planName'),
+      extract: document.getElementById('extractStatus'),
+      exportAll: document.getElementById('exportAllStatus'),
+      exportSingle: document.getElementById('exportSingleStatus'),
+      workspaces: document.getElementById('workspaceStatus'),
+      keyInput: document.getElementById('licenseKeyInput'),
+      applyBtn: document.getElementById('licenseApply'),
+      verifyBtn: document.getElementById('licenseVerify'),
+      upgradeLink: document.getElementById('upgradeLink'),
+      usageToggle: document.getElementById('licenseUsageToggle'),
+      usagePanel: document.getElementById('planStatus')
+    };
+    if (this.licenseUI.applyBtn) {
+      this.licenseUI.applyBtn.addEventListener('click', async () => {
+        const key = this.licenseUI.keyInput.value.trim();
+        await this.licenseManager.setLicenseKey(key);
+        this.showStatus('License key saved. Verifying...', 'info');
+        await this.licenseManager.verifyLicense(true);
+        this.updateLicenseUI();
+        this.hideStatus();
+      });
+    }
+    if (this.licenseUI.verifyBtn) {
+      this.licenseUI.verifyBtn.addEventListener('click', async () => {
+        this.showStatus('Verifying license...', 'info');
+        await this.licenseManager.verifyLicense(true);
+        this.updateLicenseUI();
+        this.hideStatus();
+      });
+    }
+
+    if (this.licenseUI.usageToggle && this.licenseUI.usagePanel) {
+      this.licenseUI.usageToggle.addEventListener('click', () => {
+        const visible = this.licenseUI.usagePanel.style.display !== 'none';
+        if (visible) {
+          this.licenseUI.usagePanel.style.display = 'none';
+          this.licenseUI.usageToggle.textContent = 'Usage Details ▾';
+        } else {
+          this.licenseUI.usagePanel.style.display = 'block';
+          this.licenseUI.usageToggle.textContent = 'Usage Details ▴';
+        }
+      });
+    }
+  }
+
+  updateLicenseUI() {
+    if (!this.licenseManager || !this.licenseUI) return;
+    const status = this.licenseManager.getDisplayStatus();
+    if (this.licenseUI.plan) this.licenseUI.plan.textContent = status.plan;
+    if (this.licenseUI.extract) this.licenseUI.extract.textContent = status.extract;
+    if (this.licenseUI.exportAll) this.licenseUI.exportAll.textContent = status.exportAll;
+    if (this.licenseUI.exportSingle) this.licenseUI.exportSingle.textContent = status.exportSingle;
+    if (this.licenseUI.workspaces) this.licenseUI.workspaces.textContent = status.workspaces;
+    if (this.licenseUI.keyInput && this.licenseManager.state.licenseKey) {
+      this.licenseUI.keyInput.value = this.licenseManager.state.licenseKey;
+    }
+    // Visual premium indicator
+    if (this.licenseManager.isPremium()) {
+      document.body.classList.add('premium');
+    } else {
+      document.body.classList.remove('premium');
+    }
+
+    // Defensive refresh: if any still show placeholder, schedule a retry after async verify
+    if (status.plan === 'Free' && (status.extract === '0/15' || status.extract.includes('15'))) {
+      // looks consistent; no action
+    }
+  }
+
+  guardExtraction() {
+    if (!this.licenseManager) return true; // not initialized yet
+    if (this.licenseManager.canExtractTables()) return true;
+    this.showUpgradeModal();
+    return false;
+  }
+
+  guardExportAllXLSX() {
+    if (!this.licenseManager) return true;
+    if (this.licenseManager.canExportAllXLSX()) return true;
+    this.showUpgradeModal();
+    return false;
+  }
+
+  guardExportSingleXLSX() {
+    if (!this.licenseManager) return true;
+    if (this.licenseManager.canExportSingleXLSX()) return true;
+    this.showUpgradeModal();
+    return false;
+  }
+
+  showUpgradeModal() {
+    const modal = document.getElementById('upgradeModal');
+    if (!modal) {
+      this.showStatus('Upgrade at https://alejandroechev.gumroad.com/l/tablelens', 'error');
+      return;
+    }
+    modal.style.display = 'flex';
+    const close = document.getElementById('upgradeClose');
+    if (close) close.onclick = () => { modal.style.display = 'none'; };
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display='none'; }, { once:true });
+  }
+
+  async recordExtractionUsage(foundTables) {
+    if (!this.licenseManager) return;
+    await this.licenseManager.recordExtraction(foundTables);
+    this.updateLicenseUI();
   }
 
   /**
@@ -939,6 +1086,11 @@ class PopupController {
 
     // Attach event listeners for saved state actions
     this.attachSavedStateListeners();
+
+    // Opportunistic refresh of license UI (helps first render race conditions)
+    if (this.licenseManager && this.updateLicenseUI) {
+      this.updateLicenseUI();
+    }
   }
 
   /**
@@ -1022,6 +1174,12 @@ class PopupController {
       savedStates.splice(stateIndex, 1);
       
       localStorage.setItem('tableLensSavedStates', JSON.stringify(savedStates));
+
+      // Decrement license workspace count (only if free tier had one)
+      if (this.licenseManager && !this.licenseManager.isPremium()) {
+        this.licenseManager.decrementWorkspaceCount();
+        this.updateLicenseUI?.();
+      }
       
       // Re-render the list
       this.renderSavedStates(savedStates);

@@ -41,7 +41,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["chart.html", "table-viewer.html", "table-viewer.js", "libs/*"],
+      "resources": ["chart.html", "table-viewer.html", "table-viewer.js", "libs/*", "utils/license.js"],
       "matches": ["<all_urls>"]
     }
   ]

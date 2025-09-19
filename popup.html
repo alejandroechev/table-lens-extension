@@ -50,6 +50,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Moved Plan & Usage section below saved workspaces -->
+        <div id="licensePanel" class="section" style="margin-top:12px;">
+          <h3 style="display:flex;justify-content:space-between;align-items:center;">
+            <span>🪪 Plan & Usage</span>
+            <button id="licenseUsageToggle" class="btn btn-secondary btn-small" style="flex:0 0 auto;">Usage Details ▾</button>
+          </h3>
+          <div id="licenseKeyBox" style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+            <input id="licenseKeyInput" placeholder="Enter license key" style="flex:1; padding:6px 8px; font-size:12px;" />
+            <button id="licenseApply" class="btn btn-primary btn-small" style="min-width:70px;">Apply</button>
+            <button id="licenseVerify" class="btn btn-secondary btn-small" style="min-width:70px;">Verify</button>
+          </div>
+          <div style="margin-top:4px; font-size:11px;">
+            <a id="upgradeLink" href="https://tablelens.app/pricing" target="_blank" style="text-decoration:none;">Upgrade to Premium →</a>
+          </div>
+          <!-- Collapsible usage section moved to bottom and hidden by default -->
+          <div id="planStatus" style="display:none; font-size:12px; line-height:1.5; margin-top:12px; padding:10px; border:1px solid var(--border-primary); border-radius:6px; background:var(--bg-tertiary);">
+            <div style="margin-bottom:6px; font-weight:600;">Current Plan: <span id="planName">Loading…</span></div>
+            <div><strong>Extract:</strong> <span id="extractStatus">Loading…</span></div>
+            <div><strong>Export All XLSX:</strong> <span id="exportAllStatus">Loading…</span></div>
+            <div><strong>Export XLSX (single):</strong> <span id="exportSingleStatus">Loading…</span></div>
+            <div><strong>Workspaces:</strong> <span id="workspaceStatus">Loading…</span></div>
+          </div>
+        </div>
       
       <div class="section" id="chartOptions" style="display: none;">
         <h3>🎨 Chart Options</h3>
@@ -91,5 +115,19 @@
   
   <script src="libs/xlsx.full.min.js"></script>
   <script src="popup.js"></script>
+  <div id="upgradeModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-secondary); color:var(--text-primary); padding:24px 26px; border-radius:12px; width:320px; box-shadow:0 12px 32px rgba(0,0,0,0.35); position:relative;">
+      <button id="upgradeClose" style="position:absolute; top:8px; right:10px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-tertiary);">×</button>
+      <h3 style="margin:0 0 12px 0; font-size:18px;">Unlock More</h3>
+      <p style="font-size:13px; line-height:1.5; margin:0 0 12px 0;">You're at the limit for this feature on the Free plan. Go Premium for unlimited extraction, exports, and workspaces.</p>
+      <ul style="font-size:12px; margin:0 0 14px 18px; padding:0; line-height:1.4;">
+        <li>Unlimited table extractions</li>
+        <li>Unlimited XLSX exports</li>
+        <li>Unlimited saved workspaces</li>
+        <li>Priority improvements</li>
+      </ul>
+      <a id="upgradeAction" href="https://alejandroechev.gumroad.com/l/tablelens" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:10px 14px; border-radius:8px; font-weight:600; text-decoration:none; font-size:13px;">Upgrade Now →</a>
+    </div>
+  </div>
 </body>
 </html>

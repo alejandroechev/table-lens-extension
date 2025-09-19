@@ -103,6 +103,21 @@
       font-weight: 600;
     }
 
+    .premium-badge {
+      display: inline-block;
+      margin-left: 10px;
+      background: linear-gradient(135deg,#ffb347,#ffcc33,#ffe07a);
+      color:#3b2f00;
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:14px;
+      font-weight:600;
+      letter-spacing:0.5px;
+      box-shadow:0 2px 4px rgba(0,0,0,0.2);
+      vertical-align:middle;
+    }
+    body:not(.premium) .premium-badge { display:none; }
+
     .header-info .table-info {
       font-size: 14px;
       opacity: 0.9;
@@ -1044,7 +1059,7 @@
   <div class="header">
     <div class="header-content">
       <div class="header-info">
-        <h1 id="headerTitle">📊 Table Viewer</h1>
+  <h1 id="headerTitle">📊 Table Viewer <span id="premiumBadge" class="premium-badge">PREMIUM</span></h1>
         <div class="table-info" id="tableInfo">Loading table data...</div>
       </div>
       <div class="header-actions">
@@ -1124,6 +1139,22 @@
         <button id="exportFormatCancel" class="btn btn-secondary">Cancel</button>
         <button id="exportFormatConfirm" class="btn btn-primary">Export</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Upgrade CTA Modal -->
+  <div id="upgradeModalViewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-tertiary); color:var(--text-primary); padding:24px 26px; border-radius:12px; width:340px; box-shadow:0 12px 32px rgba(0,0,0,0.35); position:relative;">
+      <button id="upgradeCloseViewer" style="position:absolute; top:8px; right:10px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-tertiary);">×</button>
+      <h3 style="margin:0 0 12px 0; font-size:18px;">Upgrade Required</h3>
+      <p style="font-size:13px; line-height:1.5; margin:0 0 12px 0;">This premium feature is limited on the Free plan. Unlock full power with unlimited XLSX exports and workspace saves.</p>
+      <ul style="font-size:12px; margin:0 0 14px 18px; padding:0; line-height:1.4;">
+        <li>Unlimited XLSX exports</li>
+        <li>Unlimited saved workspaces</li>
+        <li>Unlimited extraction</li>
+        <li>Faster improvements</li>
+      </ul>
+      <a id="upgradeActionViewer" href="https://alejandroechev.gumroad.com/l/tablelens" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:10px 14px; border-radius:8px; font-weight:600; text-decoration:none; font-size:13px;">Upgrade Now →</a>
     </div>
   </div>
   

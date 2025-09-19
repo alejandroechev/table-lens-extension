@@ -9,6 +9,7 @@ class TableViewer {
     this.columnStats = []; // Selected stat function per column
     this.charts = new Map(); // chartId -> chart instance
     this.chartCounter = 0;
+  this.licenseManager = null; // will lazy-load
     this.numericFormatMap = {}; // columnIndex -> { thousand: ',', decimal: '.' }
     this.stateManager = null; // Will be initialized when table data is loaded
     this.savedFilters = {}; // Persisted filters per column
@@ -122,6 +123,31 @@ class TableViewer {
     this.initializeElements();
     this.attachEventListeners();
     this.loadTableData();
+  }
+
+  async ensureLicenseManager() {
+    if (this.licenseManager) return this.licenseManager;
+    try {
+      const mod = await import(chrome.runtime.getURL('utils/license.js')).catch(()=>null);
+      if (mod && mod.licenseManager) {
+        this.licenseManager = mod.licenseManager;
+        await this.licenseManager.init();
+        await this.licenseManager.verifyLicense();
+      }
+    } catch (e) { console.warn('License manager load failed', e); }
+    return this.licenseManager;
+  }
+
+  showUpgradeModal() {
+    const modal = document.getElementById('upgradeModalViewer');
+    if (!modal) {
+      this.showGlobalStatus('Upgrade at https://alejandroechev.gumroad.com/l/tablelens', 'error');
+      return;
+    }
+    modal.style.display = 'flex';
+    const close = document.getElementById('upgradeCloseViewer');
+    if (close) close.onclick = () => { modal.style.display='none'; };
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display='none'; }, { once:true });
   }
   
   initializeElements() {
@@ -1536,6 +1562,25 @@ class TableViewer {
   }
   
   exportData(format) {
+    // Gate single XLSX export for free tier
+    if (format === 'xlsx') {
+      // async gate via promise; if blocked show message and return
+      this.ensureLicenseManager().then(lm => {
+        if (lm && !lm.isPremium() && !lm.canExportSingleXLSX()) {
+          this.showUpgradeModal();
+          return;
+        }
+        // proceed with XLSX export inside async block
+        this._performExport(format).then(()=>{
+          if (lm && !lm.isPremium()) lm.markExportSingleXLSX();
+        });
+      });
+      return; // prevent fall-through; XLSX handled async
+    }
+    return this._performExport(format);
+  }
+
+  async _performExport(format) {
     if (!this.filteredData || this.filteredData.length === 0) return;
 
     if (format === 'xlsx') {
@@ -2720,6 +2765,13 @@ class TableViewer {
   * Show dialog to save current table & charts with a name
    */
   showSaveStateDialog() {
+    // Gate for free tier: only one workspace at a time
+    this.ensureLicenseManager().then(lm => {
+      if (lm && !lm.isPremium() && !lm.canSaveAnotherWorkspace()) {
+        this.showUpgradeModal();
+        return;
+      }
+    });
     const modal = document.createElement('div');
     modal.className = 'save-state-modal';
     modal.innerHTML = `
@@ -2828,6 +2880,8 @@ class TableViewer {
       // Add new state
       savedStates.push(newState);
       console.log(`💾 Creating new workspace "${stateName}"`);
+      // Increment license workspace count for free tier
+      this.ensureLicenseManager().then(lm => { if (lm && !lm.isPremium()) lm.incrementWorkspaceCount(); });
     }
     
     // Update current workspace name
@@ -2908,6 +2962,8 @@ class TableViewer {
     if (this.stateManager) {
       this.stateManager.clearState();
     }
+    // Decrement workspace count when a workspace is cleared (user flow may need a hook where deletion occurs)
+    this.ensureLicenseManager().then(lm => { if (lm && !lm.isPremium()) lm.decrementWorkspaceCount(); });
   }
 }
 
