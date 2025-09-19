@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG to PNG Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5a6fd8;
+        }
+        .preview {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .size-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .generated {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 4px;
+            border-left: 4px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TableLens Icon: SVG to PNG Converter</h1>
+        
+        <div class="preview">
+            <h3>Preview:</h3>
+            <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+                <title id="title">TableLens Icon</title>
+                <desc id="desc">An icon with a #667eea indigo background showing a white table grid with a magnifying glass (lens) inspecting it.</desc>
+                
+                <!-- Background -->
+                <defs>
+                    <!-- Slight gradient to give depth while keeping the base color #667eea dominant -->
+                    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#6f80f0" />
+                        <stop offset="70%" stop-color="#667eea" />
+                        <stop offset="100%" stop-color="#5a6fd8" />
+                    </linearGradient>
+                    <filter id="softShadow" x="-10%" y="-10%" width="130%" height="130%" color-interpolation-filters="sRGB">
+                        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+                    </filter>
+                </defs>
+                <rect x="0" y="0" width="128" height="128" rx="22" fill="url(#bgGrad)" />
+                
+                <!-- Table Grid -->
+                <!-- 4 columns x 3 rows inside padded area -->
+                <g id="table" stroke="rgba(222, 220, 220, 1)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none" opacity="0.96">
+                    <!-- Outer frame -->
+                    <rect x="16" y="16" width="96" height="96" rx="6" stroke="#d7d4d4ff" stroke-width="4"/>
+                    <!-- Vertical lines -->
+                    <line x1="36" y1="16" x2="36" y2="112"/>
+                    <line x1="56" y1="16" x2="56" y2="112"/>
+                    <line x1="76" y1="16" x2="76" y2="112"/>
+                    <line x1="96" y1="16" x2="96" y2="112"/>
+                </g>
+                
+                <!-- Lens Group -->
+                <g id="lens" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#softShadow)">
+                    <!-- Lens circle -->
+                    <circle cx="83" cy="83" r="23" />
+                    <!-- Handle (45°) -->
+                    <line x1="98" y1="98" x2="112" y2="112" />
+                </g>
+                
+                <!-- Optional subtle highlight on lens for depth -->
+                <circle cx="77" cy="77" r="9" fill="#FFFFFF" opacity="0.18" />
+            </svg>
+        </div>
+
+        <h3>Generate PNG files:</h3>
+        <div class="size-buttons">
+            <button onclick="generatePNG(600)">600x600</button>
+            <button onclick="generatePNG(128)">128x128</button>
+            <button onclick="generatePNG(48)">48x48</button>
+            <button onclick="generatePNG(32)">32x32</button>
+            <button onclick="generatePNG(16)">16x16</button>
+            <button onclick="generateAllSizes()">Generate All Sizes</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const svgString = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- TableLens Icon: Lens over Table Grid | Generated 2025-09-19 -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">TableLens Icon</title>
+  <desc id="desc">An icon with a #667eea indigo background showing a white table grid with a magnifying glass (lens) inspecting it.</desc>
+  
+  <!-- Background -->
+  <defs>
+    <!-- Slight gradient to give depth while keeping the base color #667eea dominant -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6f80f0" />
+      <stop offset="70%" stop-color="#667eea" />
+      <stop offset="100%" stop-color="#5a6fd8" />
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="130%" height="130%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="128" height="128" rx="22" fill="url(#bgGrad)" />
+  
+  <!-- Table Grid -->
+  <!-- 4 columns x 3 rows inside padded area -->
+  <g id="table" stroke="rgba(222, 220, 220, 1)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none" opacity="0.96">
+    <!-- Outer frame -->
+    <rect x="16" y="16" width="96" height="96" rx="6" stroke="#d7d4d4ff" stroke-width="4"/>
+    <!-- Vertical lines -->
+    <line x1="36" y1="16" x2="36" y2="112"/>
+    <line x1="56" y1="16" x2="56" y2="112"/>
+    <line x1="76" y1="16" x2="76" y2="112"/>
+    <line x1="96" y1="16" x2="96" y2="112"/>
+  </g>
+  
+  <!-- Lens Group -->
+  <g id="lens" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#softShadow)">
+    <!-- Lens circle -->
+    <circle cx="83" cy="83" r="23" />
+    <!-- Handle (45°) -->
+    <line x1="98" y1="98" x2="112" y2="112" />
+  </g>
+  
+  <!-- Optional subtle highlight on lens for depth -->
+  <circle cx="77" cy="77" r="9" fill="#FFFFFF" opacity="0.18" />
+</svg>`;
+
+        function generatePNG(size) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            img.onload = function() {
+                // Clear canvas with transparent background
+                ctx.clearRect(0, 0, size, size);
+                
+                // Draw the SVG image scaled to the canvas size
+                ctx.drawImage(img, 0, 0, size, size);
+                
+                // Convert canvas to blob and download
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `tablelens-icon-${size}x${size}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Show success message
+                    const results = document.getElementById('results');
+                    const div = document.createElement('div');
+                    div.className = 'generated';
+                    div.innerHTML = `✅ Generated: tablelens-icon-${size}x${size}.png`;
+                    results.appendChild(div);
+                }, 'image/png');
+            };
+            
+            // Convert SVG to data URL
+            const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+            img.src = url;
+        }
+
+        function generateAllSizes() {
+            const sizes = [600, 128, 48, 32, 16];
+            document.getElementById('results').innerHTML = '';
+            
+            sizes.forEach((size, index) => {
+                setTimeout(() => {
+                    generatePNG(size);
+                }, index * 200); // Small delay between downloads
+            });
+        }
+    </script>
+</body>
+</html>
