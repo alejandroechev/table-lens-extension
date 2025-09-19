@@ -1,12 +1,18 @@
 /**
  * Column Type Detection Utilities
  * Analyzes table data to determine the appropriate data type for each column
+ * Rules:
+ * - Rate: All values are numeric with % symbol
+ * - Money: All values are numeric with currency symbols ($ € £ etc.) and may have separators
+ * - Numeric: All values are only numeric, OR mostly numeric with at most one repeated non-numeric string (but must have some numeric values)
+ * - Date: All values are dates in any recognized format
+ * - Categorical: Any other case (mixed types, text, etc.)
  */
 
 /**
- * Analyze column types based on header names and data content
+ * Analyze column types based solely on data content (ignoring headers)
  * @param {Array[]} tableData - 2D array representing table (first row is headers)
- * @returns {Array} Array of column types: 'categorical', 'numeric', 'money', 'percentage', 'date'
+ * @returns {Array} Array of column types: 'categorical', 'numeric', 'money', 'rate', 'date'
  */
 function analyzeColumnTypes(tableData) {
   if (!tableData || tableData.length < 2) return [];
@@ -15,122 +21,79 @@ function analyzeColumnTypes(tableData) {
   const rows = tableData.slice(1);
   
   return headers.map((header, colIndex) => {
-    // Check header name for specific type keywords
-    const headerName = header.toLowerCase();
+    const values = [];
     
-    // Money/Currency detection keywords
-    const moneyKeywords = [
-      'price','cost','amount','salary','wage','revenue','budget','expense','payment','fee','bill','total','subtotal','tax','discount','refund','balance','debt','income','profit','loss',
-      // Spanish / intl synonyms
-      'monto','importe','pago','cargo','cargos','valor','precio','abono','saldo','deposito','retiro'
-    ];
-    const hasMoneyKeyword = moneyKeywords.some(keyword => headerName.includes(keyword));
-    
-    // Percentage detection keywords
-    const percentKeywords = ['percent', 'percentage', 'rate', 'ratio', 'proportion', 'share', 'growth', 'change', 'increase', 'decrease', 'margin', 'roi', 'apy', 'apr', 'tax rate', 'interest'];
-    const hasPercentKeyword = percentKeywords.some(keyword => headerName.includes(keyword)) || headerName.includes('%');
-    
-    // Date detection keywords
-    const dateKeywords = [
-      'date','time','created','updated','modified','birth','start','end','deadline','due','expiry','timestamp','when','day','month','year',
-      // Spanish
-      'fecha','creado','actualizado'
-    ];
-    const hasDateKeyword = dateKeywords.some(keyword => headerName.includes(keyword));
-    
-    // Numeric detection keywords
-    const numericKeywords = ['count', 'sum', 'avg', 'average', 'number', 'value', 'score', 'quantity', 'size', 'weight', 'height', 'width', 'length', 'volume', 'area', 'distance', 'speed', 'temperature'];
-    const hasNumericKeyword = numericKeywords.some(keyword => headerName.includes(keyword));
-    
-    // Analyze actual data values for better detection
-    const sampleSize = Math.min(rows.length, 30); // Sample first 30 rows
-    let moneyCount = 0;
-    let percentCount = 0;
-    let dateCount = 0;
-    let numericCount = 0;
-    const numericSamples = [];
-    
-    for (let i = 0; i < sampleSize; i++) {
+    // Collect non-empty values for analysis
+    for (let i = 0; i < rows.length; i++) {
       const raw = rows[i][colIndex];
       const value = String(raw == null ? '' : raw).trim();
       if (value === '') continue;
-      
-      // Money pattern detection (more strict - must have currency symbol or keyword)
-      // Examples to match: "$ 113.100", "$3.408", "1.234,56 €", "EUR 1 234,56", "CLP 12.345", "12.345 CLP"
-      const moneyPatterns = [
-        /^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]\s*[+-]?[\d\.\s,]+\d(?:[,\.]\d{2})?$/, // currency symbol at start
-        /^[+-]?[\d\.\s,]+\d(?:[,\.]\d{2})?\s*[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]$/, // currency symbol at end
-        /^[+-]?[\d\.\s]+(?:,\d{2})?\s*(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)$/i, // currency code at end
-        /^(usd|eur|gbp|jpy|cad|aud|chf|cny|inr|clp|mxn|ars|cop|brl|dkk|sek|nok|chf|zar)\s+[+-]?[\d\.\s]+(?:,\d{2})?$/i // currency code at start
+      values.push(value);
+    }
+    
+    if (values.length === 0) return 'categorical';
+    
+    // Check if ALL values match each type pattern
+    const allMatch = (pattern) => values.every(value => pattern.test(value));
+    
+    // Rate: All values are numeric with % symbol
+    if (allMatch(/^[+-]?[\d.,\s]+%$/)) {
+      return 'rate';
+    }
+    
+    // Money: All values are numeric with currency symbol ($, €, £, etc.) and may have separators
+    if (allMatch(/^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?\s*[+-]?[\d.,\s]+[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]?$/) &&
+        values.some(value => /[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/.test(value))) {
+      return 'money';
+    }
+    
+    // Numeric: All values are only numeric (no other symbols except +/- and decimal/thousand separators)
+    // OR all values are numeric plus one repeated non-numeric string
+    if (allMatch(/^[+-]?[\d.,\s]+$/)) {
+      return 'numeric';
+    }
+    
+    // Check for numeric + one repeated string pattern
+    const numericValues = [];
+    const nonNumericValues = [];
+    
+    for (const value of values) {
+      if (/^[+-]?[\d.,\s]+$/.test(value)) {
+        numericValues.push(value);
+      } else {
+        nonNumericValues.push(value);
+      }
+    }
+    
+    // If we have some numeric values and exactly one unique non-numeric string (that can repeat)
+    if (numericValues.length > 0 && nonNumericValues.length > 0) {
+      const uniqueNonNumeric = [...new Set(nonNumericValues)];
+      if (uniqueNonNumeric.length === 1) {
+        return 'numeric';
+      }
+    }
+    
+    // If there are no numeric values, only repeated strings should be categorical
+    // (removed the previous logic that classified repeated non-numeric strings as numeric)
+    
+    // Date: All values are dates in any format
+    if (values.every(value => {
+      const datePatterns = [
+        /^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/, // 12/09/2025 or 12-09-25
+        /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/, // 2025-09-12
+        /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i, // Sep 12 2025
+        /^\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$/i, // 12 Sep 2025
+        /^\d{1,2}-[A-Za-z]{3}-\d{4}$/, // 12-Sep-2025
+        /^\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}$/i // 12 de septiembre de 2025
       ];
-      if (moneyPatterns.some(r => r.test(value))) {
-        moneyCount++;
-        // Capture numeric portion for format inference
-        numericSamples.push(value);
-      }
-      
-      // Percentage pattern detection
-      else if (/^\d+\.?\d*\s*%$/.test(value) || 
-               (hasPercentKeyword && /^\d+\.?\d*$/.test(value) && parseFloat(value) <= 100)) {
-        percentCount++;
-      }
-      
-      // Date pattern detection
-      else {
-        const datePatterns = [
-          /^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/ ,          // 12/09/2025 or 12-09-25
-          /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/ ,            // 2025-09-12
-          /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i, // Sep 12 2025
-          /^\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$/i,  // 12 Sep 2025
-          /^\d{1,2}-[A-Za-z]{3}-\d{4}$/ ,                  // 12-Sep-2025
-          /^\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}$/i  // 12 de septiembre de 2025 (basic Spanish)
-        ];
-        if (datePatterns.some(r => r.test(value)) || (!isNaN(Date.parse(value)) && value.length > 3)) {
-          dateCount++;
-          continue;
-        }
-        
-        // Pure numeric detection (integers and decimals without currency)
-        if (/^[+-]?\d+(\.\d+)?$/.test(value)) {
-          numericCount++;
-          numericSamples.push(value);
-          continue;
-        }
-        
-        // General numeric detection with separators (strip currency symbols, spaces)
-        const cleaned = value.replace(/[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9\s]/g,'');
-        if (/^[+-]?[0-9][0-9.,]*$/.test(cleaned)) {
-          numericSamples.push(value);
-          // Replace thousand separators and normalize decimal (fallback heuristic)
-          const normalized = cleaned.match(/,\d{2}$/) ? cleaned.replace(/\./g,'').replace(',','.') : cleaned.replace(/,/g,'');
-          if (!isNaN(parseFloat(normalized))) {
-            // If it had a currency symbol but patterns failed, still treat as money
-            if (/^[\$€£¥₽₹R\u00A3\u20AC\u00A5\u20B9]/.test(value)) {
-              moneyCount++;
-            } else {
-              numericCount++;
-            }
-          }
-        }
-      }
+      return datePatterns.some(pattern => pattern.test(value)) || 
+             (!isNaN(Date.parse(value)) && value.length > 3 && isNaN(parseFloat(value)));
+    })) {
+      return 'date';
     }
     
-    const totalValues = sampleSize;
-    const threshold = 0.7; // 70% threshold for type detection
-    
-    // Priority-based type assignment
-    let inferredType = 'categorical';
-    if (moneyCount / totalValues > threshold || hasMoneyKeyword) {
-      inferredType = 'money';
-    } else if (percentCount / totalValues > threshold || hasPercentKeyword) {
-      inferredType = 'percentage';
-    } else if (dateCount / totalValues > threshold || hasDateKeyword) {
-      inferredType = 'date';
-    } else if (numericCount / totalValues > threshold || hasNumericKeyword || /\d/.test(headerName)) {
-      inferredType = 'numeric';
-    }
-    
-    return inferredType;
+    // Default: Categorical for any other case
+    return 'categorical';
   });
 }
 
