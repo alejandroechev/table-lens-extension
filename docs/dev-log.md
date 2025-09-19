@@ -1,5 +1,27 @@
 #### Recent Development Progress (September 2025)
 
+##### User-Controlled Table Detection (September 2025)
+- **Removed Automatic Page Load Detection**: Eliminated automatic table detection that occurred when pages loaded
+  - **Performance Improvement**: Pages now load faster without immediate table scanning overhead
+  - **User Control**: Tables are only extracted when users explicitly click "Extract All Tables" button
+  - **Battery Life**: Reduced background processing on mobile devices and laptops
+  - **Privacy Enhancement**: Extension doesn't scan page content until user requests it
+- **Manual Extraction Only**: Table detection now requires explicit user action
+  - **Extract All Tables Button**: Primary method for table discovery in extension popup
+  - **On-Demand Processing**: Tables are analyzed only when needed, not speculatively
+  - **Cleaner Content Script**: Simplified content.js by removing DOMContentLoaded listeners
+  - **Maintained Functionality**: All table detection logic preserved, just trigger mechanism changed
+- **Technical Implementation**: Clean removal of automatic triggers
+  - **Event Listener Cleanup**: Removed DOMContentLoaded and setTimeout automatic detection calls
+  - **Message Handling Preserved**: `detectTables` action still works via chrome.runtime.sendMessage
+  - **No Breaking Changes**: All existing functionality works exactly as before, just manual trigger
+  - **Added Documentation**: Clear comments explain the user-controlled extraction approach
+- **Quality Assurance**: All tests continue to pass (27/27)
+  - **No Regression**: Removal of automatic detection didn't affect any existing functionality
+  - **Export Features Intact**: All export formats (CSV, TSV, Markdown, XLSX) working correctly
+  - **Column Detection Working**: Simplified 5-rule column type system continues to work perfectly
+  - **Nested Table Logic**: Complex table parsing and prioritization logic unaffected
+
 ##### Multi-Table XLSX Export (September 2025)
 - **Export All Tables Button**: Added new "📈 Export All to XLSX" button in the main extension popup
   - **Bulk Export Functionality**: Exports all detected tables from a webpage into a single XLSX file with multiple sheets

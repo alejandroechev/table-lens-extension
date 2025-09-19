@@ -752,11 +752,5 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// Auto-detect tables when page loads
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => tableDetector.detectTables(), 1000);
-  });
-} else {
-  setTimeout(() => tableDetector.detectTables(), 1000);
-}
+// Table detection is now only triggered by user action via the "Extract All Tables" button
+// No automatic detection on page load to improve performance and user control
