@@ -951,8 +951,12 @@ class PopupController {
     // Visual premium indicator
     if (this.licenseManager.isPremium()) {
       document.body.classList.add('premium');
+      const badge = document.getElementById('premiumBadge');
+      if (badge) badge.style.display = 'block';
     } else {
       document.body.classList.remove('premium');
+      const badge = document.getElementById('premiumBadge');
+      if (badge) badge.style.display = 'none';
     }
 
     // Defensive refresh: if any still show placeholder, schedule a retry after async verify
