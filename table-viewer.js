@@ -2290,20 +2290,35 @@ class TableViewer {
   }
   
   generateColors(count, datasetIndex) {
-    const colorPalettes = [
-      ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'],
-      ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#c3cfe2', '#f5f7fa'],
-      ['#ff9a9e', '#fecfef', '#fecfef', '#d299c2', '#fe9a8b', '#87ceeb']
+    // Unified extended palette (>=16 distinct colors) to avoid early repetition across many datasets.
+    // Chosen for reasonable contrast and modern look (mix of Tailwind-inspired & material-like hues).
+    const BASE_COLORS = [
+      '#667eea', // indigo
+      '#ff6b6b', // coral red
+      '#06b6d4', // cyan
+      '#f59e0b', // amber
+      '#10b981', // emerald
+      '#8b5cf6', // violet
+      '#ec4899', // pink
+      '#14b8a6', // teal
+      '#f97316', // orange
+      '#0ea5e9', // sky
+      '#84cc16', // lime
+      '#d946ef', // fuchsia
+      '#fb7185', // rose
+      '#22c55e', // green
+      '#eab308', // yellow
+      '#3b82f6'  // blue
     ];
-    
-    const palette = colorPalettes[datasetIndex % colorPalettes.length];
-    
+
+    // Single-color request (typical for multi-Y datasets where each dataset gets one color)
     if (count === 1) {
-      return palette[0];
+      return BASE_COLORS[datasetIndex % BASE_COLORS.length];
     }
-    
+
+    // Multi-color request (e.g., pie/doughnut slices). Offset by datasetIndex for variation
     return Array.from({ length: count }, (_, i) => {
-      return palette[i % palette.length];
+      return BASE_COLORS[(i + datasetIndex) % BASE_COLORS.length];
     });
   }
   
