@@ -1094,8 +1094,9 @@ class TableViewer {
       default:
         // For categorical data, create a dropdown with unique values
         const uniqueValues = this.getUniqueColumnValues(columnIndex);
-        const options = uniqueValues.slice(0, 20).map(value => 
-          `<option value="${value}">${value}</option>`
+        // Show ALL unique values (previously limited to 20). If very large, container scrolls.
+        const options = uniqueValues.map(value => 
+          `<option value="${value.replace(/"/g,'&quot;')}">${value}</option>`
         ).join('');
         
         filterHTML = `
@@ -1104,7 +1105,7 @@ class TableViewer {
             <small>Select specific values</small>
           </div>
           <div class="categorical-filter">
-            <select class="form-control filter-select" data-column="${columnIndex}" multiple>
+            <select class="form-control filter-select" data-column="${columnIndex}" multiple style="max-height:160px; overflow:auto;">
               <option value="">All values</option>
               ${options}
             </select>
