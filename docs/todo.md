@@ -12,6 +12,9 @@ ToDo:
 - CTA to get paid version (when limit is reached and always) ✅
 - More colors for charts ✅
 - Move extract notitication ✅ 
+- Fix save workspace license check
+- Fix multilist: only first X are shown
+- Allow setting header row
 
 Super Premium Version (Future):
 - More charts: Histogram, Heatmap, Treemap,...

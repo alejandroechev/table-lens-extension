@@ -2824,13 +2824,19 @@ class TableViewer {
   * Show dialog to save current table & charts with a name
    */
   showSaveStateDialog() {
-    // Gate for free tier: only one workspace at a time
+    // Gate for free tier: only one workspace at a time (must block modal creation)
     this.ensureLicenseManager().then(lm => {
       if (lm && !lm.isPremium() && !lm.canSaveAnotherWorkspace()) {
         this.showUpgradeModal();
-        return;
+        return; // Do NOT open the dialog
       }
+
+      // Proceed to open modal only if allowed
+      this._openSaveStateModal();
     });
+  }
+
+  _openSaveStateModal() {
     const modal = document.createElement('div');
     modal.className = 'save-state-modal';
     modal.innerHTML = `
@@ -2870,18 +2876,27 @@ class TableViewer {
     const cancelBtn = modal.querySelector('[data-action="cancel"]');
     const saveBtn = modal.querySelector('[data-action="save"]');
     
-    cancelBtn.addEventListener('click', () => modal.remove());
+  cancelBtn.addEventListener('click', () => modal.remove());
     
     saveBtn.addEventListener('click', () => {
       const stateName = nameInput.value.trim();
-      if (stateName) {
-        this.saveNamedState(stateName);
-        modal.remove();
-      } else {
+      if (!stateName) {
         nameInput.focus();
         nameInput.classList.add('error');
         setTimeout(() => nameInput.classList.remove('error'), 2000);
+        return;
       }
+      // Re-check gating before actual save (user could have saved externally meanwhile)
+      this.ensureLicenseManager().then(lm => {
+        if (lm && !lm.isPremium()) {
+          if (!lm.canSaveAnotherWorkspace()) {
+            this.showUpgradeModal();
+            return; // Block save
+          }
+        }
+        this.saveNamedState(stateName);
+        modal.remove();
+      });
     });
     
     // Handle Enter key
@@ -2936,40 +2951,40 @@ class TableViewer {
       savedStates[existingIndex] = newState;
       console.log(`💾 Overwriting existing workspace "${stateName}"`);
     } else {
-      // Add new state
-      savedStates.push(newState);
-      console.log(`💾 Creating new workspace "${stateName}"`);
-      // Increment license workspace count for free tier
-      this.ensureLicenseManager().then(lm => { if (lm && !lm.isPremium()) lm.incrementWorkspaceCount(); });
+      // New state: enforce license gating again (defensive)
+      // If disallowed, abort silently (modal already handled messaging)
+      // This covers any programmatic calls bypassing dialog
+      this.ensureLicenseManager().then(lm => {
+        if (lm && !lm.isPremium() && !lm.canSaveAnotherWorkspace()) {
+          this.showUpgradeModal();
+          return; // abort
+        }
+        savedStates.push(newState);
+        console.log(`💾 Creating new workspace "${stateName}"`);
+        if (lm && !lm.isPremium()) lm.incrementWorkspaceCount();
+        this._finalizeStateSave(savedStates, stateName, btn => {
+          btn.disabled = true; btn.textContent = '✔ Saved'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Save'; }, 1200);
+        });
+      });
+      return; // Wait for async gating branch
     }
-    
+    // Existing overwrite path proceeds synchronously
+    this._finalizeStateSave(savedStates, stateName, btn => {
+      btn.disabled = true; btn.textContent = '✔ Saved'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Save'; }, 1200);
+    });
+    console.log(`💾 Named state "${stateName}" ${existingIndex !== -1 ? 'updated' : 'saved'} with ${savedStates.length} total saved states`);
+  }
+
+  _finalizeStateSave(savedStates, stateName, animateBtnCb) {
     // Update current workspace name
     this.currentWorkspaceName = stateName;
-    
-    // Update title to show current workspace name
     this.elements.headerTitle.textContent = `💾 ${stateName}`;
-    
-    // Keep only last 50 states to avoid storage bloat
-    if (savedStates.length > 50) {
-      savedStates.splice(0, savedStates.length - 50);
-    }
-    
-    // Save to localStorage
+    if (savedStates.length > 50) savedStates.splice(0, savedStates.length - 50);
     localStorage.setItem('tableLensSavedStates', JSON.stringify(savedStates));
-    
-    // Show success message & subtle flash on button
     this.showGlobalStatus(`✅ Saved "${stateName}"`, 'success');
     const btn = this.elements.saveState;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = '✔ Saved';
-      setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Save'; }, 1200);
-    }
-
-    // Notify popup (if open) to refresh saved states list
+    if (btn && animateBtnCb) animateBtnCb(btn);
     try { chrome.runtime?.sendMessage({ action: 'refreshSavedStates'}); } catch(_) {}
-    
-    console.log(`💾 Named state "${stateName}" ${existingIndex !== -1 ? 'updated' : 'saved'} with ${savedStates.length} total saved states`);
   }
 
   /**
