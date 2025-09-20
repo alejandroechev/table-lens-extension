@@ -127,22 +127,16 @@ class TableViewer {
 
   async ensureLicenseManager() {
     if (this.licenseManager) {
-      console.debug('[LICENSE][ensureLicenseManager] Reusing existing instance');
       return this.licenseManager;
     }
-    console.debug('[LICENSE][ensureLicenseManager] Attempting dynamic import of license manager');
     try {
       const mod = await import(chrome.runtime.getURL('utils/license.js')).catch((err)=>{ console.warn('[LICENSE][ensureLicenseManager] Dynamic import failed (caught)', err); return null; });
       if (mod && mod.licenseManager) {
         this.licenseManager = mod.licenseManager;
-        console.debug('[LICENSE][ensureLicenseManager] Imported module licenseManager instance acquired');
         await this.licenseManager.init();
-        console.debug('[LICENSE][ensureLicenseManager] init() complete', { state: { ...this.licenseManager.state }});
         await this.licenseManager.verifyLicense();
-        console.debug('[LICENSE][ensureLicenseManager] verifyLicense() complete', { state: { ...this.licenseManager.state }});
       } else if (window.licenseManager) {
         this.licenseManager = window.licenseManager;
-        console.debug('[LICENSE][ensureLicenseManager] Falling back to window.licenseManager');
         if (!this.licenseManager.state || !this.licenseManager.state.extractMonth) {
           try { await this.licenseManager.init(); } catch(e){ console.warn('[LICENSE][ensureLicenseManager] Fallback init error', e);} }
       } else {
@@ -1578,16 +1572,12 @@ class TableViewer {
   exportData(format) {
     // Handle XLSX gating and export
     if (format === 'xlsx') {
-      console.debug('[LICENSE][SingleXLSX] exportData invoked for XLSX');
       this.ensureLicenseManager().then(lm => {
-        console.debug('[LICENSE][SingleXLSX] License manager after ensure', !!lm, lm ? { isPremium: lm.isPremium(), canExportSingleXLSX: lm.canExportSingleXLSX(), state: { ...lm.state }} : null);
         if (lm && !lm.isPremium() && !lm.canExportSingleXLSX()) {
-          console.debug('[LICENSE][SingleXLSX] Gate triggered: cannot export single XLSX');
           this.showUpgradeModal();
           return;
         }
         // _performExport for xlsx returns a promise that resolves true/false
-        console.debug('[LICENSE][SingleXLSX] Proceeding with _performExport for XLSX');
         this._performExport(format).catch(err => {
           console.error('XLSX export failed:', err);
         });
@@ -1602,47 +1592,35 @@ class TableViewer {
 
     if (format === 'xlsx') {
       const markUsage = () => {
-        console.debug('[LICENSE][SingleXLSX] markUsage() invoked');
         this.ensureLicenseManager().then(lm => {
           if (!lm) { console.warn('[LICENSE][SingleXLSX] markUsage: licenseManager missing'); return; }
-          console.debug('[LICENSE][SingleXLSX] markUsage: before mark state', { ...lm.state });
           if (lm && !lm.isPremium()) {
             lm.markExportSingleXLSX().then(()=>{
-              console.debug('[LICENSE][SingleXLSX] markExportSingleXLSX() completed', { ...lm.state });
             }).catch(err => console.warn('[LICENSE][SingleXLSX] markExportSingleXLSX() error', err));
-          } else {
-            console.debug('[LICENSE][SingleXLSX] markUsage: premium user - no marking needed');
           }
         });
       };
       try {
-        console.debug('[LICENSE][SingleXLSX] _performExport start building workbook');
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(this.filteredData);
         XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
         const fileName = `table-data-${new Date().toISOString().split('T')[0]}.xlsx`;
-        console.debug('[LICENSE][SingleXLSX] Workbook & sheet prepared', { fileName, rows: this.filteredData.length, cols: this.filteredData[0]?.length });
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
-        console.debug('[LICENSE][SingleXLSX] Blob & ObjectURL created');
 
         if (typeof chrome !== 'undefined' && chrome.downloads && chrome.downloads.download) {
-          console.debug('[LICENSE][SingleXLSX] Using chrome.downloads API path');
           return new Promise((resolve) => {
             chrome.downloads.download({ url, filename: fileName, saveAs: true }, (downloadId) => {
               if (!downloadId) {
                 URL.revokeObjectURL(url);
                 this.showGlobalStatus('XLSX export cancelled', 'error');
-                console.debug('[LICENSE][SingleXLSX] chrome.downloads.download returned null/undefined downloadId');
                 resolve(false);
                 return;
               }
-              console.debug('[LICENSE][SingleXLSX] Download started', { downloadId });
               const listener = (delta) => {
                 if (delta.id === downloadId && delta.state && delta.state.current) {
                   const state = delta.state.current;
-                  console.debug('[LICENSE][SingleXLSX] onChanged event', { downloadId, state });
                   if (state === 'complete') {
                     this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
                     markUsage();
@@ -1653,16 +1631,13 @@ class TableViewer {
                   }
                   chrome.downloads.onChanged.removeListener(listener);
                   URL.revokeObjectURL(url);
-                  console.debug('[LICENSE][SingleXLSX] Listener cleaned up for downloadId', { downloadId });
                 }
               };
-              console.debug('[LICENSE][SingleXLSX] Adding onChanged listener');
               chrome.downloads.onChanged.addListener(listener);
             });
           });
         } else {
           // Fallback path – cannot detect cancel; assume success
-            console.debug('[LICENSE][SingleXLSX] Fallback path (no downloads API)');
             try {
               XLSX.writeFile(wb, fileName);
               this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
@@ -1670,7 +1645,6 @@ class TableViewer {
               return true;
             } finally {
               URL.revokeObjectURL(url);
-              console.debug('[LICENSE][SingleXLSX] Fallback cleanup complete');
             }
         }
       } catch (error) {
