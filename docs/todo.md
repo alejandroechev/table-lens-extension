@@ -10,8 +10,8 @@ ToDo:
 - Export workspace with charts to xlsx ❌ (not possible with library)
 - Premium version divide, cap check (15 extractions, 1 save, 1 export XLSX, 1 export all XLSX) ✅
 - CTA to get paid version (when limit is reached and always) ✅
-- More colors for charts
-- Move extract notitication
+- More colors for charts ✅
+- Move extract notitication ✅ 
 
 Super Premium Version (Future):
 - More charts: Histogram, Heatmap, Treemap,...
