@@ -1,5 +1,26 @@
 #### Recent Development Progress (September 2025)
 
+##### Single XLSX Export License Tracking Fix (September 2025)
+- **Fixed License Usage Tracking**: Resolved issue where single XLSX export license usage wasn't being properly tracked
+  - **Root Cause**: License manager was not being properly initialized and awaited in the table viewer context
+  - **Missing Integration**: Unlike extraction and export-all which work properly, single XLSX export wasn't calling `markExportSingleXLSX()`
+  - **Async Context Issue**: The license manager reference was being captured incorrectly in download completion callbacks
+- **Solution Implementation**: Properly wired license tracking for single XLSX exports
+  - **Proper Awaiting**: Modified `exportData` method to properly await and handle license manager initialization
+  - **Download Callback Fix**: Fixed license manager reference in download completion callback using `ensureLicenseManager()`
+  - **Fallback Handling**: Ensured both chrome.downloads API and fallback XLSX.writeFile paths properly track usage
+  - **Consistent Behavior**: Single XLSX export now tracks usage consistently with other premium features
+- **Technical Details**: Comprehensive async handling and error management
+  - **Promise Chain**: Added proper `.then()` handling in `exportData` method for XLSX format
+  - **Callback Cleanup**: Replaced broken `lmRef = this.licenseManager` with async license manager retrieval
+  - **Error Handling**: Added catch block for export failures to prevent unhandled promise rejections
+  - **Testing Verified**: All 27 tests continue to pass, no regressions introduced
+- **Feature Parity**: Single XLSX export now matches behavior of other gated features
+  - **Extraction Tracking**: Works correctly (✅)
+  - **Export All XLSX**: Works correctly (✅)
+  - **Single XLSX Export**: Now works correctly (✅ Fixed)
+  - **Workspace Saving**: Works correctly (✅)
+
 ##### Chart Export Button Fix (September 2025)
 - **Fixed Non-Working PNG/SVG Export**: Resolved issue where chart export buttons were not responding to clicks
   - **Root Cause**: Inline onclick handlers were being blocked by Content Security Policy (CSP) in Chrome extension
