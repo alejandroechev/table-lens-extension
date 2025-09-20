@@ -89,7 +89,7 @@ class LicenseManager {
   }
 
   getExtractUsage() {
-    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 20 };
+    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 15 };
   }
 
   canExtractTables() {

@@ -282,7 +282,27 @@
       transition: all 0.2s ease;
     }
 
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
 
+    .btn-danger:hover:not(:disabled) {
+      background: #c82333;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-accent {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-accent:hover {
+      background: #667eea;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
 
     /* Filter Buttons in Table Headers */
     .data-table th {
@@ -1086,15 +1106,11 @@
     <div class="tab-content">
       <div class="tab-panel active" id="data-panel">
         <div class="data-toolbar">
-          <div class="toolbar-left">
-            <button id="exportData" class="btn btn-secondary btn-sm">
-              ↗️ Export
-            </button>
+          <div class="toolbar-left" id="dataToolbarLeft">
+            <!-- Buttons injected dynamically: Set Header, Reset -->
           </div>
-          <div class="toolbar-right">
-            <button id="resetFiltersAndSort" class="btn btn-secondary btn-sm" title="Reset all filters and sorting">
-              🔄 Reset Filters & Sorting
-            </button>
+          <div class="toolbar-right" id="dataToolbarRight">
+            <button id="exportData" class="btn btn-accent btn-sm" title="Export table data">↗️ Export</button>
           </div>
         </div>
         

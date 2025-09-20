@@ -221,6 +221,33 @@ class TableViewer {
         this.restoreFromSavedState(event.data.savedState);
       }
     });
+
+    // Inject Set Header Row button if toolbar exists
+    this.injectToolbarButtons();
+  }
+
+  injectToolbarButtons() {
+    const left = document.getElementById('dataToolbarLeft');
+    if (!left) return;
+    // Clear existing (idempotent)
+    left.innerHTML = '';
+    // Set Header button
+    const setHeaderBtn = document.createElement('button');
+    setHeaderBtn.id = 'setHeaderRowBtn';
+    setHeaderBtn.className = 'btn btn-accent btn-sm';
+    setHeaderBtn.textContent = '🔧 Set Header';
+    setHeaderBtn.title = 'Choose which row becomes the header';
+    setHeaderBtn.addEventListener('click', () => this.showSetHeaderRowDialog());
+    left.appendChild(setHeaderBtn);
+    // Reset button (danger style)
+    const resetBtn = document.createElement('button');
+    resetBtn.id = 'resetFiltersAndSort';
+    resetBtn.className = 'btn btn-danger btn-sm';
+    resetBtn.style.marginLeft = '6px';
+    resetBtn.textContent = '♻️ Reset filers & sorting';
+    resetBtn.title = 'Reset all filters and sorting';
+    resetBtn.addEventListener('click', () => this.fullResetTable());
+    left.appendChild(resetBtn);
   }
   
   loadTableData() {
@@ -732,6 +759,90 @@ class TableViewer {
       this.updateAllFilterButtonStates();
     }, 100);
     // Note: Manual save required to persist structural changes
+  }
+
+  showSetHeaderRowDialog() {
+    if (!this.tableData || this.tableData.length === 0) return;
+    const modal = document.createElement('div');
+    modal.className = 'set-header-modal';
+    const maxPreview = Math.min(this.tableData.length, 30);
+    const previewRows = this.tableData.slice(0, maxPreview).map((row, idx) => {
+      const preview = row.map(c => (c==null?'':String(c)).trim()).slice(0,6).join(' | ');
+      return `<tr><td><input type="radio" name="headerRow" value="${idx}" ${idx===0?'checked':''}></td><td style="font-size:11px;">Row ${idx}</td><td style="font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:360px;">${preview || '(empty)'}</td></tr>`;
+    }).join('');
+    modal.innerHTML = `
+      <div class="set-header-content" role="dialog" aria-modal="true" style="background:var(--bg-secondary);padding:16px;border-radius:8px;max-width:640px;width:640px;box-shadow:0 8px 32px rgba(0,0,0,0.35);">
+        <h3 style="margin-top:0;">Select Header Row</h3>
+        <p style="font-size:12px;line-height:1.4;">Choose the row that contains the final column names. All other rows will become data rows (original order preserved).</p>
+        <div style="max-height:300px; overflow:auto; border:1px solid var(--border-primary); border-radius:6px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead><tr style="background:var(--bg-tertiary);"><th style="width:40px;">Pick</th><th style="width:60px;">Index</th><th>Preview (first 6 cells)</th></tr></thead>
+            <tbody>${previewRows}</tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+          <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn btn-primary" data-action="apply">Apply</button>
+        </div>
+      </div>`;
+    Object.assign(modal.style, {position:'fixed', inset:'0', background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999});
+    document.body.appendChild(modal);
+    const cancel = modal.querySelector('[data-action="cancel"]');
+    const apply = modal.querySelector('[data-action="apply"]');
+    cancel.addEventListener('click', () => modal.remove());
+    apply.addEventListener('click', () => {
+      const sel = modal.querySelector('input[name="headerRow"]:checked');
+      if (sel) {
+        const idx = parseInt(sel.value,10);
+        this.setHeaderRow(idx, { deleteAbove:true });
+      }
+      modal.remove();
+    });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    modal.addEventListener('keydown', e => { if (e.key==='Escape') modal.remove(); });
+  }
+
+  setHeaderRow(rowIndex, opts = {}) {
+    if (!this.tableData || rowIndex < 0 || rowIndex >= this.tableData.length) return;
+    // Use utility if available
+    try {
+      if (!this.reheaderUtil && typeof reheaderTable === 'function') {
+        this.reheaderUtil = reheaderTable;
+      }
+    } catch(_) {}
+    const transformer = this.reheaderUtil || ((data,i)=>{ const header=data[i]; return [header, ...data.filter((_,x)=>x!==i)]; });
+    let newData = transformer(this.tableData, rowIndex);
+    if (opts.deleteAbove) {
+      // Remove any rows that were originally above the chosen header (they become irrelevant)
+      // Map original indices; chosen header now at index 0.
+      const originalHeaderRow = this.tableData[rowIndex];
+      newData = [originalHeaderRow, ...this.tableData.filter((_, i) => i > rowIndex)];
+    }
+    this.tableData = newData;
+    this.originalData = [...newData];
+    this.filteredData = [...newData];
+    // Recompute types & stats
+    this.analyzeColumnTypes();
+    this.initializeColumnStats();
+    this.currentSort = { column: -1, direction: 'none' };
+    this.savedFilters = {};
+    this.renderDataTable();
+    this.calculateAllStats();
+  this.showGlobalStatus(`✅ Header row set to original row ${rowIndex}${opts.deleteAbove ? ' (rows above removed)' : ''}`, 'success');
+    // Persist if in a workspace context
+    setTimeout(()=> this.saveState?.(), 400);
+  }
+
+  fullResetTable() {
+    if (!this.originalData || !this.tableData) return;
+    this.currentSort = { column: -1, direction: 'none' };
+    this.savedFilters = {};
+    this.filteredData = [...this.tableData];
+    this.analyzeColumnTypes();
+    this.initializeColumnStats();
+    this.renderDataTable();
+    this.calculateAllStats();
+    this.showGlobalStatus('🔄 Table view reset', 'success');
   }
   
   setupDataControls() {
