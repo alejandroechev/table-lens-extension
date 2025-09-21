@@ -1689,7 +1689,6 @@ class TableViewer {
           this.showUpgradeModal();
           return;
         }
-        // _performExport for xlsx returns a promise that resolves true/false
         this._performExport(format).catch(err => {
           console.error('XLSX export failed:', err);
         });
@@ -1705,11 +1704,18 @@ class TableViewer {
     if (format === 'xlsx') {
       const markUsage = () => {
         this.ensureLicenseManager().then(lm => {
-          if (!lm) { console.warn('[LICENSE][SingleXLSX] markUsage: licenseManager missing'); return; }
+          if (!lm) { 
+            console.warn('[LICENSE][SingleXLSX] markUsage: licenseManager missing'); 
+            return; 
+          }
           if (lm && !lm.isPremium()) {
             lm.markExportSingleXLSX().then(()=>{
-            }).catch(err => console.warn('[LICENSE][SingleXLSX] markExportSingleXLSX() error', err));
+            }).catch(err => {
+              console.warn('[LICENSE][SingleXLSX] markExportSingleXLSX() error', err);
+            });
           }
+        }).catch(err => {
+          console.warn('[DEBUG][XLSX] ensureLicenseManager failed in markUsage:', err);
         });
       };
       try {
@@ -1730,22 +1736,41 @@ class TableViewer {
                 resolve(false);
                 return;
               }
+
+              // Mark usage immediately when download starts successfully
+              // This fixes the issue where Edge doesn't properly trigger completion events
+              this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
+              markUsage();
+              
+              // Set up listener for completion tracking (but don't rely on it for usage marking)
+              let hasResolved = false;
               const listener = (delta) => {
-                if (delta.id === downloadId && delta.state && delta.state.current) {
+                if (delta.id === downloadId && delta.state && delta.state.current && !hasResolved) {
                   const state = delta.state.current;
                   if (state === 'complete') {
-                    this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
-                    markUsage();
+                    hasResolved = true;
                     resolve(true);
+                    chrome.downloads.onChanged.removeListener(listener);
+                    URL.revokeObjectURL(url);
                   } else if (state === 'interrupted') {
-                    this.showGlobalStatus('XLSX export cancelled or failed', 'error');
+                    hasResolved = true;
                     resolve(false);
+                    chrome.downloads.onChanged.removeListener(listener);
+                    URL.revokeObjectURL(url);
                   }
-                  chrome.downloads.onChanged.removeListener(listener);
-                  URL.revokeObjectURL(url);
                 }
               };
               chrome.downloads.onChanged.addListener(listener);
+              
+              // Fallback timeout in case the listener never fires (Edge issue)
+              setTimeout(() => {
+                if (!hasResolved) {
+                  hasResolved = true;
+                  chrome.downloads.onChanged.removeListener(listener);
+                  URL.revokeObjectURL(url);
+                  resolve(true);
+                }
+              }, 5000);
             });
           });
         } else {

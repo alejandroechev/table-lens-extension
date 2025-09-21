@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TableLens",
   "version": "1.0.0",
-  "description": "Convert tables (CSV, HTML, Markdown) into interactive charts with export functionality",
+  "description": "Extract HTML tables from any webpage, explore them with charts, and export your data with ease.",
   "permissions": [
     "activeTab",
     "storage",

@@ -15,8 +15,8 @@ class LicenseManager {
     this.defaults = {
       extractMonth: null,
       extractCount: 0,
-      exportAllUsed: false,
-      exportSingleUsed: false,
+      exportAllCount: 0,
+      exportSingleCount: 0,
       savedWorkspaceCount: 0,
       licenseKey: null,
       licenseValid: false,
@@ -61,13 +61,49 @@ class LicenseManager {
   }
 
   async _load() {
+    console.debug('[DEBUG][LICENSE] _load() called');
     const stored = await this.storage.get(null);
+    console.debug('[DEBUG][LICENSE] _load - raw stored data:', stored);
     this.state = { ...this.defaults, ...stored };
+    console.debug('[DEBUG][LICENSE] _load - state after merge with defaults:', { ...this.state });
+    
+    // Migration: Convert legacy boolean flags to counters (run on every load)
+    let needsSave = false;
+    if (typeof this.state.exportAllUsed === 'boolean') {
+      console.debug('[DEBUG][LICENSE] _load - migrating exportAllUsed:', this.state.exportAllUsed);
+      this.state.exportAllCount = this.state.exportAllUsed ? 1 : 0;
+      delete this.state.exportAllUsed;
+      needsSave = true;
+    }
+    if (typeof this.state.exportSingleUsed === 'boolean') {
+      console.debug('[DEBUG][LICENSE] _load - migrating exportSingleUsed:', this.state.exportSingleUsed);
+      this.state.exportSingleCount = this.state.exportSingleUsed ? 1 : 0;
+      delete this.state.exportSingleUsed;
+      needsSave = true;
+    }
+    
+    console.debug('[DEBUG][LICENSE] _load - migration needed:', needsSave);
+    // Save migrated state immediately if needed
+    if (needsSave) {
+      console.debug('[DEBUG][LICENSE] _load - saving migrated state:', { ...this.state });
+      await this.storage.set(this.state);
+      console.debug('[DEBUG][LICENSE] _load - migrated state saved successfully');
+    }
+    console.debug('[DEBUG][LICENSE] _load - final state:', { ...this.state });
   }
 
   async _save(patch) {
+    console.debug('[DEBUG][LICENSE] _save called with patch:', patch);
+    const oldState = { ...this.state };
     this.state = { ...this.state, ...patch };
-    await this.storage.set(this.state);
+    console.debug('[DEBUG][LICENSE] _save - state before storage.set:', { ...this.state });
+    try {
+      await this.storage.set(this.state);
+      console.debug('[DEBUG][LICENSE] _save - storage.set completed successfully');
+    } catch (error) {
+      console.error('[DEBUG][LICENSE] _save - storage.set failed:', error);
+      throw error;
+    }
     return this.state;
   }
 
@@ -81,6 +117,9 @@ class LicenseManager {
     if (this.state.extractMonth !== mk) {
       this.state.extractMonth = mk;
       this.state.extractCount = 0;
+      // Reset monthly export counters when month changes
+      this.state.exportAllCount = 0;
+      this.state.exportSingleCount = 0;
     }
   }
 
@@ -106,22 +145,69 @@ class LicenseManager {
     return this.state;
   }
 
+  _getMonthlyExportLimits() {
+    return { all: 2, single: 2 }; // free limits per month
+  }
+
   canExportAllXLSX() {
-    return this.isPremium() || !this.state.exportAllUsed;
+    if (this.isPremium()) return true;
+    const { all } = this._getMonthlyExportLimits();
+    return this.state.exportAllCount < all;
   }
 
   async markExportAllXLSX() {
     if (this.isPremium()) return;
-    if (!this.state.exportAllUsed) await this._save({ exportAllUsed: true });
+    const { all } = this._getMonthlyExportLimits();
+    if (this.state.exportAllCount >= all) return;
+    await this._save({ exportAllCount: this.state.exportAllCount + 1, extractMonth: this._currentMonthKey() });
   }
 
   canExportSingleXLSX() {
-    return this.isPremium() || !this.state.exportSingleUsed;
+    const isPremium = this.isPremium();
+    const { single } = this._getMonthlyExportLimits();
+    const canExport = isPremium || this.state.exportSingleCount < single;
+    console.debug('[DEBUG][LICENSE] canExportSingleXLSX check:', {
+      isPremium,
+      exportSingleCount: this.state.exportSingleCount,
+      singleLimit: single,
+      canExport,
+      currentMonth: this._currentMonthKey(),
+      stateMonth: this.state.extractMonth
+    });
+    return canExport;
   }
 
   async markExportSingleXLSX() {
-    if (this.isPremium()) return;
-    if (!this.state.exportSingleUsed) await this._save({ exportSingleUsed: true });
+    console.debug('[DEBUG][LICENSE] markExportSingleXLSX() called');
+    const isPremium = this.isPremium();
+    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - isPremium:', isPremium);
+    if (isPremium) {
+      console.debug('[DEBUG][LICENSE] markExportSingleXLSX - user is premium, not marking');
+      return;
+    }
+    const { single } = this._getMonthlyExportLimits();
+    const currentCount = this.state.exportSingleCount;
+    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - before increment:', {
+      currentCount,
+      limit: single,
+      monthKey: this._currentMonthKey(),
+      stateMonth: this.state.extractMonth
+    });
+    if (currentCount >= single) {
+      console.debug('[DEBUG][LICENSE] markExportSingleXLSX - already at limit, not incrementing');
+      return;
+    }
+    const newCount = currentCount + 1;
+    const monthKey = this._currentMonthKey();
+    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - saving new state:', {
+      newCount,
+      monthKey
+    });
+    await this._save({ exportSingleCount: newCount, extractMonth: monthKey });
+    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - saved successfully. New state:', {
+      exportSingleCount: this.state.exportSingleCount,
+      extractMonth: this.state.extractMonth
+    });
   }
 
   canSaveAnotherWorkspace() {
@@ -176,8 +262,8 @@ class LicenseManager {
     return {
       plan: 'Free',
       extract: `${this.state.extractCount}/15`,
-      exportAll: this.state.exportAllUsed ? 'Used' : 'Available',
-      exportSingle: this.state.exportSingleUsed ? 'Used' : 'Available',
+      exportAll: `${this.state.exportAllCount}/2`,
+      exportSingle: `${this.state.exportSingleCount}/2`,
       workspaces: `${this.state.savedWorkspaceCount}/1`
     };
   }

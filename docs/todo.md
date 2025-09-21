@@ -14,7 +14,14 @@ ToDo:
 - Move extract notitication ✅ 
 - Fix save workspace license check ✅
 - Fix multilist: only first X are shown ✅
-- Allow setting header row
+- Allow setting header row ✅
+- Allow 2 exports per month
+- Show month reset
+- Warn user when they are one X to reach montlyh cap
+- Explaing that deleting workspace reenables saving
+- Check that license is always checked not only when added the first time
+- Remove emojis from Data top bar buttons
+- Remove the verify button in the license check
 
 Super Premium Version (Future):
 - More charts: Histogram, Heatmap, Treemap,...
