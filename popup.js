@@ -1044,6 +1044,15 @@ class PopupController {
     if (this.licenseUI.exportAll) this.licenseUI.exportAll.textContent = status.exportAll;
     if (this.licenseUI.exportSingle) this.licenseUI.exportSingle.textContent = status.exportSingle;
     if (this.licenseUI.workspaces) this.licenseUI.workspaces.textContent = status.workspaces;
+    // Reset date (only meaningful for free tier, but we show for both)
+    const resetEl = document.getElementById('resetStatus');
+    if (resetEl && this.licenseManager.getNextResetDate) {
+      const d = this.licenseManager.getNextResetDate();
+      // Format: e.g. Oct 1, 2025
+      const fmt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      resetEl.textContent = this.licenseManager.isPremium() ? `${fmt} (not limited)` : fmt;
+      resetEl.setAttribute('title', 'Monthly quotas reset at the start of the date shown (local time).');
+    }
     if (this.licenseUI.keyInput && this.licenseManager.state.licenseKey) {
       this.licenseUI.keyInput.value = this.licenseManager.state.licenseKey;
     }

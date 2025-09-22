@@ -222,11 +222,23 @@ class LicenseManager {
     }
     return {
       plan: 'Free',
-      extract: `${this.state.extractCount}/15`,
-      exportAll: `${this.state.exportAllCount}/2`,
-      exportSingle: `${this.state.exportSingleCount}/2`,
+      extract: `${this.state.extractCount}/${this.getExtractUsage().max} per month`,
+      exportAll: `${this.state.exportAllCount}/${this._getMonthlyExportLimits().all}  per month`,
+      exportSingle: `${this.state.exportSingleCount}/${this._getMonthlyExportLimits().single}  per month`,
       workspaces: `${this.state.savedWorkspaceCount}/1`
     };
+  }
+
+  /**
+   * Returns a Date object representing the UTC-agnostic local first day of the next month
+   * used to reset the monthly quotas. We reset counters when the observed month key changes,
+   * so effectively at local midnight on the 1st of next month.
+   */
+  getNextResetDate() {
+    const now = new Date();
+    // First day of next month
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+    return nextMonth;
   }
 }
 
