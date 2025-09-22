@@ -29,3 +29,16 @@
     box-shadow: 0 0 0 0 rgba(var(--highlight-shadow), 0);
   }
 }
+
+/* Warning styles for global status */
+.global-status.status-warning {
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+  border: 1px solid #ffeaa7 !important;
+}
+
+[data-theme="dark"] .global-status.status-warning {
+  background-color: #744210 !important;
+  color: #f6d55c !important;
+  border: 1px solid #b7791f !important;
+}

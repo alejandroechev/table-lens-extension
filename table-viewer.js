@@ -235,7 +235,7 @@ class TableViewer {
     const setHeaderBtn = document.createElement('button');
     setHeaderBtn.id = 'setHeaderRowBtn';
     setHeaderBtn.className = 'btn btn-accent btn-sm';
-    setHeaderBtn.textContent = '🔧 Set Header';
+    setHeaderBtn.textContent = 'Set Header';
     setHeaderBtn.title = 'Choose which row becomes the header';
     setHeaderBtn.addEventListener('click', () => this.showSetHeaderRowDialog());
     left.appendChild(setHeaderBtn);
@@ -244,7 +244,7 @@ class TableViewer {
     resetBtn.id = 'resetFiltersAndSort';
     resetBtn.className = 'btn btn-danger btn-sm';
     resetBtn.style.marginLeft = '6px';
-    resetBtn.textContent = '♻️ Reset filers & sorting';
+    resetBtn.textContent = 'Reset filers & sorting';
     resetBtn.title = 'Reset all filters and sorting';
     resetBtn.addEventListener('click', () => this.fullResetTable());
     left.appendChild(resetBtn);
@@ -1741,6 +1741,30 @@ class TableViewer {
               // This fixes the issue where Edge doesn't properly trigger completion events
               this.showGlobalStatus('Data exported as XLSX successfully!', 'success');
               markUsage();
+              
+              // Show warning if approaching single export limit
+              setTimeout(() => {
+                this.ensureLicenseManager().then(lm => {
+                  if (lm && lm.isNearExportSingleLimit && lm.isNearExportSingleLimit()) {
+                    const { single } = lm._getMonthlyExportLimits();
+                    const remaining = single - lm.state.exportSingleCount;
+                    setTimeout(() => {
+                      this.showGlobalStatus(`⚠️ Only ${remaining} single XLSX export${remaining === 1 ? '' : 's'} left this month`, 'warning');
+                    }, 3000);
+                  }
+                }).catch(() => {});
+              }, 100);
+              setTimeout(() => {
+                this.ensureLicenseManager().then(lm => {
+                  if (lm && lm.isNearExportSingleLimit && lm.isNearExportSingleLimit()) {
+                    const { single } = lm._getMonthlyExportLimits();
+                    const remaining = single - lm.state.exportSingleCount;
+                    setTimeout(() => {
+                      this.showGlobalStatus(`⚠️ Only ${remaining} single XLSX export${remaining === 1 ? '' : 's'} left this month`, 'warning');
+                    }, 3000);
+                  }
+                }).catch(() => {});
+              }, 100);
               
               // Set up listener for completion tracking (but don't rely on it for usage marking)
               let hasResolved = false;

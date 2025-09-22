@@ -240,6 +240,55 @@ class LicenseManager {
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
     return nextMonth;
   }
+
+  /**
+   * Check if user is approaching extraction limit (1 away from limit)
+   */
+  isNearExtractionLimit() {
+    if (this.isPremium()) return false;
+    const { used, max } = this.getExtractUsage();
+    return used === max - 1; // Only warn when exactly 1 left, not when at limit
+  }
+
+  /**
+   * Check if user is approaching export all XLSX limit (1 away from limit)
+   */
+  isNearExportAllLimit() {
+    if (this.isPremium()) return false;
+    const { all } = this._getMonthlyExportLimits();
+    return this.state.exportAllCount === all - 1; // Only warn when exactly 1 left, not when at limit
+  }
+
+  /**
+   * Check if user is approaching export single XLSX limit (1 away from limit)
+   */
+  isNearExportSingleLimit() {
+    if (this.isPremium()) return false;
+    const { single } = this._getMonthlyExportLimits();
+    return this.state.exportSingleCount === single - 1; // Only warn when exactly 1 left, not when at limit
+  }
+
+  /**
+   * Get warning messages for limits that are being approached
+   */
+  getWarnings() {
+    const warnings = [];
+    if (this.isNearExtractionLimit()) {
+      const remaining = 15 - this.state.extractCount;
+      warnings.push(`⚠️ Only ${remaining} table extraction${remaining === 1 ? '' : 's'} left this month`);
+    }
+    if (this.isNearExportAllLimit()) {
+      const { all } = this._getMonthlyExportLimits();
+      const remaining = all - this.state.exportAllCount;
+      warnings.push(`⚠️ Only ${remaining} "Export All" left this month`);
+    }
+    if (this.isNearExportSingleLimit()) {
+      const { single } = this._getMonthlyExportLimits();
+      const remaining = single - this.state.exportSingleCount;
+      warnings.push(`⚠️ Only ${remaining} single XLSX export${remaining === 1 ? '' : 's'} left this month`);
+    }
+    return warnings;
+  }
 }
 
 // Singleton helper for runtime contexts

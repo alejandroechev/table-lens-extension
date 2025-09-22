@@ -172,6 +172,15 @@ class PopupController {
         this.showStatus(`Found ${this.tables.length} table(s) on webpage`, 'success');
           // Record usage only if tables were actually found (free tier)
           await this.recordExtractionUsage(this.tables.length);
+          
+          // Show warning if approaching extraction limit
+          if (this.licenseManager && this.licenseManager.isNearExtractionLimit && this.licenseManager.isNearExtractionLimit()) {
+            setTimeout(() => {
+              const remaining = 15 - this.licenseManager.state.extractCount;
+              this.showStatus(`⚠️ Only ${remaining} extraction${remaining === 1 ? '' : 's'} left this month`, 'warning');
+            }, 2500);
+          }
+          
         setTimeout(() => this.hideStatus(), 2000);
       }
     } catch (error) {
@@ -886,6 +895,18 @@ class PopupController {
               URL.revokeObjectURL(url);
               if (success) {
                 this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
+                
+                // Show warning if approaching export all limit
+                setTimeout(() => {
+                  if (this.licenseManager && this.licenseManager.isNearExportAllLimit && this.licenseManager.isNearExportAllLimit()) {
+                    const { all } = this.licenseManager._getMonthlyExportLimits();
+                    const remaining = all - this.licenseManager.state.exportAllCount;
+                    setTimeout(() => {
+                      this.showStatus(`⚠️ Only ${remaining} "Export All" left this month`, 'warning');
+                    }, 3500);
+                  }
+                }, 100);
+                
                 setTimeout(()=>this.hideStatus(),3000);
               } else {
                 this.showStatus('XLSX export cancelled', 'error');
@@ -1044,6 +1065,18 @@ class PopupController {
     if (this.licenseUI.exportAll) this.licenseUI.exportAll.textContent = status.exportAll;
     if (this.licenseUI.exportSingle) this.licenseUI.exportSingle.textContent = status.exportSingle;
     if (this.licenseUI.workspaces) this.licenseUI.workspaces.textContent = status.workspaces;
+    
+    // Show warnings for approaching limits
+    const warnings = this.licenseManager.getWarnings ? this.licenseManager.getWarnings() : [];
+    const warningEl = document.getElementById('limitWarnings');
+    if (warningEl) {
+      if (warnings.length > 0) {
+        warningEl.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
+        warningEl.style.display = 'block';
+      } else {
+        warningEl.style.display = 'none';
+      }
+    }
     // Reset date (only meaningful for free tier, but we show for both)
     const resetEl = document.getElementById('resetStatus');
     if (resetEl && this.licenseManager.getNextResetDate) {

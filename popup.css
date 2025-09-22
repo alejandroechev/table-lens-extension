@@ -24,6 +24,9 @@
   --info-bg: #d1ecf1;
   --info-text: #0c5460;
   --info-border: #bee5eb;
+  --warning-bg: #fff3cd;
+  --warning-text: #856404;
+  --warning-border: #ffeaa7;
   --highlight-bg: #fff176;
   --scroll-track: #f1f1f1;
   --scroll-thumb: #c1c1c1;
@@ -56,6 +59,9 @@
   --info-bg: #2c5282;
   --info-text: #bee3f8;
   --info-border: #3182ce;
+  --warning-bg: #744210;
+  --warning-text: #f6d55c;
+  --warning-border: #b7791f;
   --highlight-bg: #d69e2e;
   --scroll-track: #2d3748;
   --scroll-thumb: #4a5568;
@@ -472,6 +478,12 @@ label {
   background: var(--info-bg);
   color: var(--info-text);
   border: 1px solid var(--info-border);
+}
+
+.status-warning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
 }
 
 /* Scrollbar styling */
