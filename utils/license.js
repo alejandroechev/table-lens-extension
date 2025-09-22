@@ -115,7 +115,7 @@ class LicenseManager {
   }
 
   getExtractUsage() {
-    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 25 };
+    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 15 };
   }
 
   canExtractTables() {
@@ -133,7 +133,7 @@ class LicenseManager {
   }
 
   _getMonthlyExportLimits() {
-    return { all: 5, single: 2 }; // free limits per month
+    return { all: 2, single: 2 }; // free limits per month
   }
 
   canExportAllXLSX() {
