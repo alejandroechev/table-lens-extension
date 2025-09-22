@@ -21,7 +21,7 @@ ToDo:
 - Warn user when they are one X to reach montlyh cap
 - Explaing that deleting workspace reenables saving
 - Check that license is always checked not only when added the first time ✅
-- Remove emojis from Data top bar buttons
+- Remove emojis from Data top bar buttons ✅
 - Remove the verify button in the license check
 - Dev mechanism to test license, caps
 
