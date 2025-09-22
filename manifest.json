@@ -6,15 +6,11 @@
   "permissions": [
     "activeTab",
     "storage",
-    "downloads",
-    "desktopCapture"
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "TableLens",
@@ -34,8 +30,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js", "ocr-capture.js"],
-      "css": ["content.css", "ocr-overlay.css"],
+      "js": ["content.js"],
+      "css": ["content.css"],
       "run_at": "document_idle"
     }
   ],
