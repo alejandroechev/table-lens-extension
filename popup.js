@@ -1094,10 +1094,36 @@ class PopupController {
       document.body.classList.add('premium');
       const badge = document.getElementById('premiumBadge');
       if (badge) badge.style.display = 'block';
+      // Hide upgrade link and show premium status for premium users
+      if (this.licenseUI.upgradeLink) {
+        this.licenseUI.upgradeLink.style.display = 'none';
+      }
+      // Show premium thank you message
+      const upgradeLinkParent = this.licenseUI.upgradeLink?.parentElement;
+      if (upgradeLinkParent) {
+        let premiumMessage = upgradeLinkParent.querySelector('.premium-status-message');
+        if (!premiumMessage) {
+          premiumMessage = document.createElement('div');
+          premiumMessage.className = 'premium-status-message';
+          premiumMessage.style.cssText = 'font-size:11px; color:#059669; font-weight:500;';
+          premiumMessage.innerHTML = '✅ Premium activated - Thank you for your support!';
+          upgradeLinkParent.appendChild(premiumMessage);
+        }
+        premiumMessage.style.display = 'block';
+      }
     } else {
       document.body.classList.remove('premium');
       const badge = document.getElementById('premiumBadge');
       if (badge) badge.style.display = 'none';
+      // Show upgrade link for free users
+      if (this.licenseUI.upgradeLink) {
+        this.licenseUI.upgradeLink.style.display = 'block';
+      }
+      // Hide premium message
+      const premiumMessage = document.querySelector('.premium-status-message');
+      if (premiumMessage) {
+        premiumMessage.style.display = 'none';
+      }
     }
 
     // Defensive refresh: if any still show placeholder, schedule a retry after async verify
