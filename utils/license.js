@@ -115,7 +115,7 @@ class LicenseManager {
   }
 
   getExtractUsage() {
-    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 15 };
+    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 25 };
   }
 
   canExtractTables() {
@@ -274,7 +274,7 @@ class LicenseManager {
   getWarnings() {
     const warnings = [];
     if (this.isNearExtractionLimit()) {
-      const remaining = 15 - this.state.extractCount;
+      const remaining = this.getExtractUsage().max - this.state.extractCount;
       warnings.push(`⚠️ Only ${remaining} table extraction${remaining === 1 ? '' : 's'} left this month`);
     }
     if (this.isNearExportAllLimit()) {

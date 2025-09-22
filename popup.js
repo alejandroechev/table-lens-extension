@@ -1109,30 +1109,77 @@ class PopupController {
   guardExtraction() {
     if (!this.licenseManager) return true; // not initialized yet
     if (this.licenseManager.canExtractTables()) return true;
-    this.showUpgradeModal();
+    this.showUpgradeModal('extraction');
     return false;
   }
 
   guardExportAllXLSX() {
     if (!this.licenseManager) return true;
     if (this.licenseManager.canExportAllXLSX()) return true;
-    this.showUpgradeModal();
+    this.showUpgradeModal('exportAll');
     return false;
   }
 
   guardExportSingleXLSX() {
     if (!this.licenseManager) return true;
     if (this.licenseManager.canExportSingleXLSX()) return true;
-    this.showUpgradeModal();
+    this.showUpgradeModal('exportSingle');
     return false;
   }
 
-  showUpgradeModal() {
+  showUpgradeModal(limitType = 'general') {
     const modal = document.getElementById('upgradeModal');
     if (!modal) {
       this.showStatus('Upgrade at https://alejandroechev.gumroad.com/l/tablelens', 'error');
       return;
     }
+    
+    // Customize modal content based on limit type
+    const titleEl = document.getElementById('upgradeModalTitle');
+    const messageEl = document.getElementById('upgradeModalMessage');
+    const detailsEl = document.getElementById('upgradeModalDetails');
+    
+    if (titleEl && messageEl && detailsEl) {
+      switch (limitType) {
+        case 'extraction':
+          titleEl.textContent = 'Monthly Extraction Limit Reached';
+          messageEl.textContent = 'You\'ve used all 15 table extractions for this month. Upgrade to Premium for unlimited extractions.';
+          if (this.licenseManager && this.licenseManager.getNextResetDate) {
+            const resetDate = this.licenseManager.getNextResetDate();
+            const resetStr = resetDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            detailsEl.innerHTML = `<strong>📅 Free extractions reset:</strong> ${resetStr}`;
+          }
+          break;
+        case 'exportAll':
+          titleEl.textContent = 'Monthly Export Limit Reached';
+          messageEl.textContent = 'You\'ve used all 5 "Export All" XLSX exports for this month. Upgrade to Premium for unlimited exports.';
+          if (this.licenseManager && this.licenseManager.getNextResetDate) {
+            const resetDate = this.licenseManager.getNextResetDate();
+            const resetStr = resetDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            detailsEl.innerHTML = `<strong>📅 Free exports reset:</strong> ${resetStr}`;
+          }
+          break;
+        case 'exportSingle':
+          titleEl.textContent = 'Monthly Export Limit Reached';
+          messageEl.textContent = 'You\'ve used all 2 single XLSX exports for this month. Upgrade to Premium for unlimited exports.';
+          if (this.licenseManager && this.licenseManager.getNextResetDate) {
+            const resetDate = this.licenseManager.getNextResetDate();
+            const resetStr = resetDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            detailsEl.innerHTML = `<strong>📅 Free exports reset:</strong> ${resetStr}`;
+          }
+          break;
+        case 'workspace':
+          titleEl.textContent = 'Workspace Limit Reached';
+          messageEl.textContent = 'Free accounts can save 1 workspace. Upgrade to Premium for unlimited saved workspaces.';
+          detailsEl.innerHTML = `<strong>💡 Tip:</strong> Delete your current saved workspace to free up space, then save a new one.`;
+          break;
+        default:
+          titleEl.textContent = 'Unlock More';
+          messageEl.textContent = 'You\'re at the limit for this feature on the Free plan. Go Premium for unlimited extraction, exports, and workspaces.';
+          detailsEl.innerHTML = '';
+      }
+    }
+    
     modal.style.display = 'flex';
     const close = document.getElementById('upgradeClose');
     if (close) close.onclick = () => { modal.style.display = 'none'; };

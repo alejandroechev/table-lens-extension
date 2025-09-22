@@ -146,12 +146,43 @@ class TableViewer {
     return this.licenseManager;
   }
 
-  showUpgradeModal() {
+  showUpgradeModal(limitType = 'general') {
     const modal = document.getElementById('upgradeModalViewer');
     if (!modal) {
       this.showGlobalStatus('Upgrade at https://alejandroechev.gumroad.com/l/tablelens', 'error');
       return;
     }
+    
+    // Customize modal content based on limit type
+    const titleEl = document.getElementById('upgradeModalViewerTitle');
+    const messageEl = document.getElementById('upgradeModalViewerMessage');
+    const detailsEl = document.getElementById('upgradeModalViewerDetails');
+    
+    if (titleEl && messageEl && detailsEl) {
+      switch (limitType) {
+        case 'exportSingle':
+          titleEl.textContent = 'Monthly Export Limit Reached';
+          messageEl.textContent = 'You\'ve used all 2 single XLSX exports for this month. Upgrade to Premium for unlimited exports.';
+          this.ensureLicenseManager().then(lm => {
+            if (lm && lm.getNextResetDate) {
+              const resetDate = lm.getNextResetDate();
+              const resetStr = resetDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+              detailsEl.innerHTML = `<strong>📅 Free exports reset:</strong> ${resetStr}`;
+            }
+          }).catch(() => {});
+          break;
+        case 'workspace':
+          titleEl.textContent = 'Workspace Limit Reached';
+          messageEl.textContent = 'Free accounts can save 1 workspace. Upgrade to Premium for unlimited saved workspaces.';
+          detailsEl.innerHTML = `<strong>💡 Tip:</strong> Delete your current saved workspace to free up space, then save a new one.`;
+          break;
+        default:
+          titleEl.textContent = 'Unlock More';
+          messageEl.textContent = 'You\'re at the limit for this feature on the Free plan. Go Premium for unlimited extraction, exports, and workspaces.';
+          detailsEl.innerHTML = '';
+      }
+    }
+    
     modal.style.display = 'flex';
     const close = document.getElementById('upgradeCloseViewer');
     if (close) close.onclick = () => { modal.style.display='none'; };
@@ -1686,7 +1717,7 @@ class TableViewer {
     if (format === 'xlsx') {
       this.ensureLicenseManager().then(lm => {
         if (lm && !lm.isPremium() && !lm.canExportSingleXLSX()) {
-          this.showUpgradeModal();
+          this.showUpgradeModal('exportSingle');
           return;
         }
         this._performExport(format).catch(err => {
@@ -2988,7 +3019,7 @@ class TableViewer {
     // Gate for free tier: only one workspace at a time (must block modal creation)
     this.ensureLicenseManager().then(lm => {
       if (lm && !lm.isPremium() && !lm.canSaveAnotherWorkspace()) {
-        this.showUpgradeModal();
+        this.showUpgradeModal('workspace');
         return; // Do NOT open the dialog
       }
 
@@ -3051,7 +3082,7 @@ class TableViewer {
       this.ensureLicenseManager().then(lm => {
         if (lm && !lm.isPremium()) {
           if (!lm.canSaveAnotherWorkspace()) {
-            this.showUpgradeModal();
+            this.showUpgradeModal('workspace');
             return; // Block save
           }
         }
@@ -3117,7 +3148,7 @@ class TableViewer {
       // This covers any programmatic calls bypassing dialog
       this.ensureLicenseManager().then(lm => {
         if (lm && !lm.isPremium() && !lm.canSaveAnotherWorkspace()) {
-          this.showUpgradeModal();
+          this.showUpgradeModal('workspace');
           return; // abort
         }
         savedStates.push(newState);

@@ -125,8 +125,9 @@
   <div id="upgradeModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; align-items:center; justify-content:center;">
     <div style="background:var(--bg-secondary); color:var(--text-primary); padding:24px 26px; border-radius:12px; width:320px; box-shadow:0 12px 32px rgba(0,0,0,0.35); position:relative;">
       <button id="upgradeClose" style="position:absolute; top:8px; right:10px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-tertiary);">×</button>
-      <h3 style="margin:0 0 12px 0; font-size:18px;">Unlock More</h3>
-      <p style="font-size:13px; line-height:1.5; margin:0 0 12px 0;">You're at the limit for this feature on the Free plan. Go Premium for unlimited extraction, exports, and workspaces.</p>
+      <h3 id="upgradeModalTitle" style="margin:0 0 12px 0; font-size:18px;">Unlock More</h3>
+      <p id="upgradeModalMessage" style="font-size:13px; line-height:1.5; margin:0 0 12px 0;">You're at the limit for this feature on the Free plan. Go Premium for unlimited extraction, exports, and workspaces.</p>
+      <div id="upgradeModalDetails" style="font-size:12px; line-height:1.4; margin:0 0 12px 0; padding:8px; border-radius:6px; background:var(--bg-tertiary);"></div>
       <ul style="font-size:12px; margin:0 0 14px 18px; padding:0; line-height:1.4;">
         <li>Unlimited table extractions</li>
         <li>Unlimited XLSX exports</li>
