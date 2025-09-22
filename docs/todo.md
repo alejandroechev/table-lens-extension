@@ -15,7 +15,8 @@ ToDo:
 - Fix save workspace license check ✅
 - Fix multilist: only first X are shown ✅
 - Allow setting header row ✅
-- Allow 2 exports per month
+- Allow 2 exports per month ✅
+- Check if extract all is only being marked as used when the actual file is being saved
 - Show month reset
 - Warn user when they are one X to reach montlyh cap
 - Explaing that deleting workspace reenables saving

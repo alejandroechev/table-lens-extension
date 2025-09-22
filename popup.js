@@ -847,16 +847,115 @@ class PopupController {
       const siteName = this.getSiteName(tab.url);
       const fileName = `${siteName}_all_tables_${timestamp}.xlsx`;
 
-      // Write and download the file
-      XLSX.writeFile(wb, fileName);
+      // Mark usage function for when export actually happens
+      const markUsage = () => {
+        if (this.licenseManager && !this.licenseManager.isPremium()) {
+          this.licenseManager.markExportAllXLSX().then(() => {
+            this.updateLicenseUI();
+          }).catch(err => {
+            console.warn('[LICENSE][ExportAllXLSX] markExportAllXLSX() error', err);
+          });
+        }
+      };
 
-      this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
-      setTimeout(() => this.hideStatus(), 3000);
-      // Record usage for free tier
-      if (this.licenseManager && !this.licenseManager.isPremium()) {
-        this.licenseManager.markExportAllXLSX();
-        this.updateLicenseUI();
+      // Write and download the file with Chrome downloads API if available
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+
+      if (typeof chrome !== 'undefined' && chrome.downloads && chrome.downloads.download) {
+        // Use Chrome downloads API and only mark usage on successful completion (after user presses Save)
+        chrome.downloads.download({ url, filename: fileName, saveAs: true }, (downloadId) => {
+          if (!downloadId) {
+            URL.revokeObjectURL(url);
+            this.showStatus('XLSX export cancelled', 'error');
+            return;
+          }
+
+            // Inform user to finish the save dialog
+            this.showStatus('Confirm save location to complete export...', 'info');
+
+            let usageMarked = false;
+            let finished = false;
+            const startedAt = Date.now();
+
+            const finalize = (success) => {
+              if (finished) return;
+              finished = true;
+              chrome.downloads.onChanged.removeListener(listener);
+              URL.revokeObjectURL(url);
+              if (success) {
+                this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
+                setTimeout(()=>this.hideStatus(),3000);
+              } else {
+                this.showStatus('XLSX export cancelled', 'error');
+                setTimeout(()=>this.hideStatus(),3000);
+              }
+            };
+
+            const markIfNeeded = () => {
+              if (!usageMarked) {
+                usageMarked = true;
+                markUsage();
+              }
+            };
+
+            const listener = (delta) => {
+              if (delta.id !== downloadId) return;
+              if (delta.state && delta.state.current) {
+                const state = delta.state.current;
+                if (state === 'complete') {
+                  // Only now do we count usage (user pressed Save and download finished)
+                  markIfNeeded();
+                  finalize(true);
+                } else if (state === 'interrupted') {
+                  finalize(false);
+                }
+              }
+            };
+            chrome.downloads.onChanged.addListener(listener);
+
+            // Fallback polling for browsers (Edge) that may miss completion event
+            const pollIntervalMs = 3000;
+            const maxWaitMs = 30000; // 30s before giving up (do not mark usage if unknown)
+            const poll = () => {
+              if (finished) return;
+              chrome.downloads.search({ id: downloadId }, (results) => {
+                if (finished) return;
+                const item = Array.isArray(results) ? results[0] : null;
+                if (item) {
+                  if (item.state === 'complete') {
+                    markIfNeeded();
+                    finalize(true);
+                    return;
+                  } else if (item.state === 'interrupted') {
+                    finalize(false);
+                    return;
+                  }
+                }
+                if (Date.now() - startedAt < maxWaitMs) {
+                  setTimeout(poll, pollIntervalMs);
+                } else {
+                  // Timed out waiting; assume user cancelled (do not mark usage)
+                  finalize(false);
+                }
+              });
+            };
+            setTimeout(poll, pollIntervalMs);
+        });
+      } else {
+        // Fallback to direct XLSX.writeFile
+        try {
+          XLSX.writeFile(wb, fileName);
+          // Direct write implies user accepted (no Save As dialog path)
+          this.showStatus(`Successfully exported ${successCount} table(s) to ${fileName}`, 'success');
+          markUsage();
+        } finally {
+          URL.revokeObjectURL(url);
+        }
       }
+
+      // hideStatus handled in lifecycle above
 
     } catch (error) {
       console.error('XLSX export error:', error);

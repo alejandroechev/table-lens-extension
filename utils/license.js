@@ -61,47 +61,34 @@ class LicenseManager {
   }
 
   async _load() {
-    console.debug('[DEBUG][LICENSE] _load() called');
     const stored = await this.storage.get(null);
-    console.debug('[DEBUG][LICENSE] _load - raw stored data:', stored);
     this.state = { ...this.defaults, ...stored };
-    console.debug('[DEBUG][LICENSE] _load - state after merge with defaults:', { ...this.state });
     
     // Migration: Convert legacy boolean flags to counters (run on every load)
     let needsSave = false;
     if (typeof this.state.exportAllUsed === 'boolean') {
-      console.debug('[DEBUG][LICENSE] _load - migrating exportAllUsed:', this.state.exportAllUsed);
       this.state.exportAllCount = this.state.exportAllUsed ? 1 : 0;
       delete this.state.exportAllUsed;
       needsSave = true;
     }
     if (typeof this.state.exportSingleUsed === 'boolean') {
-      console.debug('[DEBUG][LICENSE] _load - migrating exportSingleUsed:', this.state.exportSingleUsed);
       this.state.exportSingleCount = this.state.exportSingleUsed ? 1 : 0;
       delete this.state.exportSingleUsed;
       needsSave = true;
     }
     
-    console.debug('[DEBUG][LICENSE] _load - migration needed:', needsSave);
     // Save migrated state immediately if needed
     if (needsSave) {
-      console.debug('[DEBUG][LICENSE] _load - saving migrated state:', { ...this.state });
       await this.storage.set(this.state);
-      console.debug('[DEBUG][LICENSE] _load - migrated state saved successfully');
     }
-    console.debug('[DEBUG][LICENSE] _load - final state:', { ...this.state });
   }
 
   async _save(patch) {
-    console.debug('[DEBUG][LICENSE] _save called with patch:', patch);
     const oldState = { ...this.state };
     this.state = { ...this.state, ...patch };
-    console.debug('[DEBUG][LICENSE] _save - state before storage.set:', { ...this.state });
     try {
       await this.storage.set(this.state);
-      console.debug('[DEBUG][LICENSE] _save - storage.set completed successfully');
     } catch (error) {
-      console.error('[DEBUG][LICENSE] _save - storage.set failed:', error);
       throw error;
     }
     return this.state;
@@ -146,7 +133,7 @@ class LicenseManager {
   }
 
   _getMonthlyExportLimits() {
-    return { all: 2, single: 2 }; // free limits per month
+    return { all: 5, single: 2 }; // free limits per month
   }
 
   canExportAllXLSX() {
@@ -166,48 +153,22 @@ class LicenseManager {
     const isPremium = this.isPremium();
     const { single } = this._getMonthlyExportLimits();
     const canExport = isPremium || this.state.exportSingleCount < single;
-    console.debug('[DEBUG][LICENSE] canExportSingleXLSX check:', {
-      isPremium,
-      exportSingleCount: this.state.exportSingleCount,
-      singleLimit: single,
-      canExport,
-      currentMonth: this._currentMonthKey(),
-      stateMonth: this.state.extractMonth
-    });
     return canExport;
   }
 
   async markExportSingleXLSX() {
-    console.debug('[DEBUG][LICENSE] markExportSingleXLSX() called');
     const isPremium = this.isPremium();
-    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - isPremium:', isPremium);
     if (isPremium) {
-      console.debug('[DEBUG][LICENSE] markExportSingleXLSX - user is premium, not marking');
       return;
     }
     const { single } = this._getMonthlyExportLimits();
     const currentCount = this.state.exportSingleCount;
-    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - before increment:', {
-      currentCount,
-      limit: single,
-      monthKey: this._currentMonthKey(),
-      stateMonth: this.state.extractMonth
-    });
     if (currentCount >= single) {
-      console.debug('[DEBUG][LICENSE] markExportSingleXLSX - already at limit, not incrementing');
       return;
     }
     const newCount = currentCount + 1;
     const monthKey = this._currentMonthKey();
-    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - saving new state:', {
-      newCount,
-      monthKey
-    });
     await this._save({ exportSingleCount: newCount, extractMonth: monthKey });
-    console.debug('[DEBUG][LICENSE] markExportSingleXLSX - saved successfully. New state:', {
-      exportSingleCount: this.state.exportSingleCount,
-      extractMonth: this.state.extractMonth
-    });
   }
 
   canSaveAnotherWorkspace() {
