@@ -24,9 +24,6 @@
     <main>
       <div class="section">
         <h3>📋 Detected Tables</h3>
-        <div class="search-bar">
-          <input id="tableSearch" type="text" placeholder="Search tables... (live filter)" />
-        </div>
         <div class="table-actions">
           <button id="allTables" class="btn btn-primary btn-large">🔍 Extract All Tables</button>
           <button id="exportAllTablesXLSX" class="btn btn-success btn-large" style="display: none;">📈 Export All to XLSX</button>
@@ -34,6 +31,9 @@
           <button id="scanTables" class="btn btn-secondary" style="display: none;">🔄 Scan for Tables</button>
           <button id="ocrCapture" class="btn btn-primary" style="display: none;">🧠 Smart Table Capture</button>
           <button id="imageCapture" class="btn btn-secondary" style="display: none;">🖼️ Image→Table</button>
+        </div>
+        <div class="search-bar">
+          <input id="tableSearch" type="text" placeholder="Search tables... (live filter)" />
         </div>
         <div id="tableList" class="table-list">
           <div class="no-tables">
@@ -56,33 +56,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Moved Plan & Usage section below saved workspaces -->
-        <div id="licensePanel" class="section" style="margin-top:12px;">
-          <h3 style="display:flex;justify-content:space-between;align-items:center;">
-            <span>🪪 Plan & Usage</span>
-            <button id="licenseUsageToggle" class="btn btn-secondary btn-small" style="flex:0 0 auto;">Usage Details ▾</button>
-          </h3>
-          <div id="licenseKeyBox" style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
-            <input id="licenseKeyInput" placeholder="Enter license key" style="flex:1; padding:6px 8px; font-size:12px;" />
-            <button id="licenseApply" class="btn btn-primary btn-small" style="min-width:70px;">Apply</button>
-          </div>
-          <div style="margin-top:4px; font-size:11px;">
-            <a id="upgradeLink" href="https://tablelens.app/pricing" target="_blank" style="text-decoration:none;">Upgrade to Premium →</a>
-          </div>
-          <!-- Warning section for approaching limits -->
-          <div id="limitWarnings" style="display:none; font-size:11px; line-height:1.4; margin-top:8px; padding:8px; border:1px solid #f59e0b; border-radius:6px; background:rgba(245,158,11,0.1); color:#92400e;"></div>
-          
-          <!-- Collapsible usage section moved to bottom and hidden by default -->
-          <div id="planStatus" style="display:none; font-size:12px; line-height:1.5; margin-top:12px; padding:10px; border:1px solid var(--border-primary); border-radius:6px; background:var(--bg-tertiary);">
-            <div style="margin-bottom:6px; font-weight:600;">Current Plan: <span id="planName">Loading…</span></div>
-            <div><strong>Extract:</strong> <span id="extractStatus">Loading…</span></div>
-            <div><strong>Export All XLSX:</strong> <span id="exportAllStatus">Loading…</span></div>
-            <div><strong>Export XLSX (single):</strong> <span id="exportSingleStatus">Loading…</span></div>
-            <div><strong>Workspaces:</strong> <span id="workspaceStatus">Loading…</span></div>
-            <div><strong>Next Reset:</strong> <span id="resetStatus">Loading…</span></div>
-          </div>
-        </div>
       
       <div class="section" id="chartOptions" style="display: none;">
         <h3>🎨 Chart Options</h3>

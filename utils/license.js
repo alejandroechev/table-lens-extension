@@ -115,7 +115,7 @@ class LicenseManager {
   }
 
   getExtractUsage() {
-    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : 15 };
+    return { used: this.state.extractCount, max: this.isPremium() ? Infinity : Infinity };
   }
 
   canExtractTables() {
@@ -133,7 +133,7 @@ class LicenseManager {
   }
 
   _getMonthlyExportLimits() {
-    return { all: 2, single: 2 }; // free limits per month
+    return { all: Infinity, single: Infinity }; // free limits per month
   }
 
   canExportAllXLSX() {
@@ -172,7 +172,7 @@ class LicenseManager {
   }
 
   canSaveAnotherWorkspace() {
-    return this.isPremium() || this.state.savedWorkspaceCount < 1;
+    return this.isPremium() || this.state.savedWorkspaceCount < Infinity;
   }
 
   async incrementWorkspaceCount() {
